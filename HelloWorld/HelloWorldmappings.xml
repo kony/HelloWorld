@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<application name="HelloWorld" id="HelloWorld">
+    <container type="form" id="frmHome" displayname="Form"/>
+    <container type="form" id="frmHome" displayname="Form"/>
+    <container type="form" id="frmHome" displayname="Form"/>
+    <globalsequences/>
+    <skins/>
+</application>

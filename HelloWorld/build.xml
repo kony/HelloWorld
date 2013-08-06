@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<project name="kony" basedir="." default="main">	
+	<target name="main" >
+	 	<taskdef resource="net/sf/antcontrib/antcontrib.properties">
+ 	  <classpath>
+ 	    <pathelement location="../ant-contrib-0.6.jar"/>
+ 	  </classpath>
+ 	</taskdef>
+	
+	<echo message="Started script..."/>
+	
+	<property file="./build.properties"/>
+	<property file="../global.properties"/>
+	
+	<property name="input.file" value="${basedir}/build.properties"/>
+	<property name="global.file" location="../global.properties"/>
+		
+	
+	<if>
+		<or>
+			<not>
+				<available file="${input.file}"/>
+			</not>
+			<not>
+				<available file="${global.file}"/>
+			</not>
+		</or>
+		<then>
+			<fail message="Either ${input.file}
+				or
+				${global.file}
+				doesn't exist"/>
+		</then>
+	</if>
+		
+	<if>
+		<or>
+			<equals arg1="${project.name}" arg2=""/>
+			<equals arg1="${workspace.location}" arg2=""/>
+		</or>
+		<then>
+			<fail message="Either project name or workspace location is not given. 
+				Please set 'project.name' property in ${input.file}
+				and
+				Please set 'workspace.location' property in ${global.file}"/>
+		</then>
+		<else>
+			<if>
+				<not>
+					<available file="${workspace.location}/${project.name}" type="dir"/>
+				</not>
+				<then>
+					<fail message="Project '${project.name}' doesn't exist in  ${workspace.location}"/>
+				</then>
+			</if>
+		</else>
+	</if>
+		
+	<if>
+		<equals arg1="${eclipse.equinox.path}" arg2=""/>
+		<then>
+			<fail message="Please set 'eclipse.equinox.path' property in ${global.file}"/>
+		</then>
+		<else>
+			<if>
+				<not>
+					<available file="${eclipse.equinox.path}"/>
+				</not>
+				<then>
+					<fail message="The path provided for 'eclipse.equinox.path' property in ${global.file} is not present.."/>
+				</then>
+			</if>
+		</else>
+	</if>
+		
+		
+	<echo message="WORKSPACE LOCATION: ${workspace.location}"/>
+
+	<exec dir="." executable="cmd" failonerror="true">
+		<arg value="/c"/>
+		<arg value="run.bat"/>
+		<arg value="${input.file}"/>
+		<arg value="${workspace.location}"/>
+		<arg value="${eclipse.equinox.path}"/>
+		<arg value="${global.file}"/>
+	</exec>
+	
+	<echo message="Ending script..."/>
+
+	</target>
+	
+</project>
