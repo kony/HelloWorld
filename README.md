@@ -8,17 +8,22 @@ Sample HelloWorld application with a single Form, Button and Alert
 With this application you can test KonyOne studio environment to ensure that you have setup emulators properly and they work correctly before you start developing more complex applications.
 
 # Supported platforms:
-* iPhone
-* iPad
-* Android
-* Android tablet
-* Window Phone 8
-* Windwos 7.5 Mango Phone
-* BlackBerry
-* SPA iPhone
-* SPA BlackBerry
-* SPA iPad
-* SPA Android
-* SPA Android tablet
-* DesktopWeb
-* Windwos 8 Desktop
+**Mobile**
+ * Android
+ * iPhone
+ * Window Phone 8
+ * Windwos 7.5 Mango Phone
+ * BlackBerry
+ * SPA Android
+ * SPA iPhone
+ * SPA BlackBerry
+ 
+**Tablet** 
+ * Anroid
+ * iPad
+ * SPA iPad
+ * SPA Android
+ 
+**Desktop**
+ * DesktopWeb
+ * Windwos 8 Desktop
