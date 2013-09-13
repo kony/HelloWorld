@@ -19,7 +19,7 @@ With this application you can test KonyOne studio environment to ensure that you
  * SPA BlackBerry
  
 **Tablet** 
- * Anroid
+ * Android
  * iPad
  * SPA iPad
  * SPA Android
