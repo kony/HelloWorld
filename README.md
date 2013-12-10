@@ -1,4 +1,4 @@
-To get started, first click the Download Zip button to the right to download this tutorial's assets.
+To get started, first click the Download ZIP button to the right to download this tutorial's assets.
 
 
 HelloWorld Application
