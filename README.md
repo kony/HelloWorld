@@ -1,3 +1,6 @@
+To get started, first click the Download Zip button to the right to download this tutorial's assets.
+
+
 HelloWorld Application
 =======================
 This simple HelloWorld app is used to insure that your [Kony Development Cloud](http://www.kony.com/products/development) setup is operating property.
