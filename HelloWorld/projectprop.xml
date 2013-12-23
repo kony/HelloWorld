@@ -12,7 +12,7 @@
     <attributes name="wp8cycle6key" value=""/>
     <attributes name="wp8packagepublisheridkey" value=""/>
     <attributes name="Home_or_Work_Networking" value="true"/>
-    <attributes name="andminsdkkey" value="2.1"/>
+    <attributes name="andminsdkkey" value="2.3"/>
     <attributes name="PERSISTENT_ACTIVITY" value="false"/>
     <attributes name="READ_SMS" value="false"/>
     <attributes name="applepushfunc" value="None"/>
@@ -86,6 +86,7 @@
     <attributes name="BRICK" value="false"/>
     <attributes name="ID_CAP_APPOINTMENTS" value="true"/>
     <attributes name="SET_PREFERRED_APPLICATIONS" value="false"/>
+    <attributes name="SELECTED_THEME" value="default"/>
     <attributes name="GET_TASKS" value="false"/>
     <attributes name="Music_Library" value="true"/>
     <attributes name="tabletstartupformkey" value="frmHome"/>
@@ -205,7 +206,7 @@
     <attributes name="tcphoneformatindicator" value="false"/>
     <attributes name="Location" value="true"/>
     <attributes name="ACCESS_SURFACE_FLINGER" value="false"/>
-    <attributes name="currentgaversion" value="5.5.19.QA_v201309102135"/>
+    <attributes name="currentgaversion" value="5.5.0.GA_v201311292058"/>
     <attributes name="mwhttpsportkey" value=""/>
     <attributes name="pathkey" value=""/>
     <attributes name="vendornamekey" value="KonyLabs"/>
@@ -246,7 +247,7 @@
     <attributes name="SUBSCRIBED_FEEDS_WRITE" value="false"/>
     <attributes name="ipadportraitmodekey" value="true"/>
     <attributes name="appnamekey" value="HelloWorld"/>
-    <attributes name="andtargetsdkkey" value="2.1"/>
+    <attributes name="andtargetsdkkey" value="2.3.3"/>
     <attributes name="READ_LOGS" value="false"/>
     <attributes name="deeplinkkey" value="None"/>
     <attributes name="WRITE_GSERVICES" value="false"/>
@@ -346,7 +347,6 @@
     <attributes name="CHANGE_COMPONENT_ENABLED_STATE" value="false"/>
     <attributes name="WP8_ID_CAP_MEDIALIB_AUDIO" value="true"/>
     <attributes name="access_pimdomain_messages" value="false"/>
-    <attributes name="supportmarginpixelindip" value="true"/>
     <attributes name="iphonewebshrtcutkey" value=""/>
     <attributes name="ID_CAP_NETWORKING" value="true"/>
     <attributes name="ID_HW_FRONTCAMERA" value="false"/>

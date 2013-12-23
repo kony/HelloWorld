@@ -1,20 +1,42 @@
 <?xml version="1.0" encoding="ISO-8859-1"?>
-<project name="kony" basedir="." default="main">	
-	<target name="main" >
-	 	<taskdef resource="net/sf/antcontrib/antcontrib.properties">
- 	  <classpath>
- 	    <pathelement location="../ant-contrib-0.6.jar"/>
- 	  </classpath>
- 	</taskdef>
+<project name="kony" basedir="." default="main">
 	
+	<target name="main">
+	    <property name="antjar.file" value="${basedir}/ant-contrib-0.6.jar"/>
+		<echo message="Looking for JAR antcontrib.jar at : ${antjar.file}"/>
+		<taskdef resource="net/sf/antcontrib/antcontrib.properties">
+		<classpath>
+			<pathelement location="${antjar.file}"/>
+		</classpath>
+		</taskdef>
+		<osfamily property="os.family"/>	
 	<echo message="Started script..."/>
+	<property name="input.file" location="${basedir}/build.properties"/>
 	
-	<property file="./build.properties"/>
-	<property file="../global.properties"/>
+	<if>
+    <available file="${basedir}/global.properties"/>
+    <then>
+      <property name="global.available" value="true"/>
+    </then>
+	<else>
+	  <property name="global.available" value="false"/>	
+	</else>
+	</if>
 	
-	<property name="input.file" value="${basedir}/build.properties"/>
-	<property name="global.file" location="../global.properties"/>
 		
+	<if>
+	 <equals arg1="${global.available}" arg2="true"/>
+		<then>
+			<property name="global.file" location="${basedir}/global.properties"/>
+		</then>
+		<else>
+			<property name="global.file" location="../global.properties"/>
+		</else>
+	</if>
+	
+	
+	<echo message="Global properties file LOCATION: ${global.file}"/>
+	<echo message="Build properties file LOCATION: ${input.file}"/>
 	
 	<if>
 		<or>
@@ -32,30 +54,39 @@
 				doesn't exist"/>
 		</then>
 	</if>
+	<property file="${input.file}"/>
+	<property file="${global.file}"/>	
 		
+	
 	<if>
-		<or>
-			<equals arg1="${project.name}" arg2=""/>
-			<equals arg1="${workspace.location}" arg2=""/>
-		</or>
+		<equals arg1="${workspace.location}" arg2=""/>
 		<then>
-			<fail message="Either project name or workspace location is not given. 
-				Please set 'project.name' property in ${input.file}
-				and
-				Please set 'workspace.location' property in ${global.file}"/>
+			<property name = "ws.location" value ="../" />
+		</then>
+		<else>
+			<property name = "ws.location" value ="${workspace.location}"/>
+		</else>
+	</if>	
+	<echo message="WORKSPACE LOCATION: ${ws.location}"/>	
+	<if>
+		<equals arg1="${project.name}" arg2=""/>
+		<then>
+			<fail message="Project name  is not given. 
+				Please set 'project.name' property in ${input.file}"/>
 		</then>
 		<else>
 			<if>
 				<not>
-					<available file="${workspace.location}/${project.name}" type="dir"/>
+					<available file="${ws.location}/${project.name}" type="dir"/>
 				</not>
 				<then>
-					<fail message="Project '${project.name}' doesn't exist in  ${workspace.location}"/>
+					<fail message="Project '${project.name}' doesn't exist in  ${ws.location}"/>
 				</then>
 			</if>
 		</else>
 	</if>
-		
+	
+	
 	<if>
 		<equals arg1="${eclipse.equinox.path}" arg2=""/>
 		<then>
@@ -73,17 +104,27 @@
 		</else>
 	</if>
 		
-		
-	<echo message="WORKSPACE LOCATION: ${workspace.location}"/>
-
-	<exec dir="." executable="cmd" failonerror="true">
-		<arg value="/c"/>
-		<arg value="run.bat"/>
-		<arg value="${input.file}"/>
-		<arg value="${workspace.location}"/>
-		<arg value="${eclipse.equinox.path}"/>
-		<arg value="${global.file}"/>
-	</exec>
+    <if>
+    	<equals arg1="${os.family}" arg2="windows"/>
+    	<then>
+    		<exec dir="." executable="cmd" failonerror="true">
+    			<arg value="/c"/>
+    			<arg value="run.bat"/>
+    			<arg value="${input.file}"/>
+    			<arg value="${ws.location}"/>
+    			<arg value="${eclipse.equinox.path}"/>
+    			<arg value="${global.file}"/>
+    		</exec>
+    	</then>
+    	<else>
+	        <exec dir="." executable="/bin/bash" failonerror="true">
+	        	<arg line='-c "chmod 777 run.sh"'/>
+	        </exec>
+	        <exec dir="." executable="/bin/bash" failonerror="true">
+	        	<arg line='-c "sh run.sh ${input.file} ${ws.location} ${eclipse.equinox.path} ${global.file}"'/>
+	        </exec>
+    	</else>
+    </if>	
 	
 	<echo message="Ending script..."/>
 
