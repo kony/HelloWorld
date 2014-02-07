@@ -1,3 +1,4 @@
+
 	kony.decrement = function(num){
 		if(typeof(num) === "number"){
 			return num - 1;
@@ -29,10 +30,12 @@
 		}
 		return tArr;
 	};	
-
+/**The Math Library has APIs that you can use to perform mathematical operations.*/
 kony.math = {
+	/**@Deprecated. This API returns the value of pi. Note: math.pi is not a function, but a property in math namespace.*/
 	pi: Math.PI,
 
+	/**@Deprecated. This API generates pseudo-random numbers which are uniformly distributed. This API generates a real number between 0 and 1.*/
 	random: function () {
 		
 		return (Math.random());
@@ -66,7 +69,8 @@ kony.math = {
 		return null;
 	},
 	*/
-
+/**@Deprecated. This API sets the input parameter as the "seed" for the pseudo-random generator.
+Note: Equal seeds produce equal sequences of numbers.*/
 	randomSeed: function (num) {
 		pseudoRandomArray = [];
 	
@@ -79,7 +83,7 @@ kony.math = {
 		}
 		return pseudoRandomArray[num];
 	},
-
+/**@Deprecated. This API converts the float value to an integer. The converted integer value is always the integer part of the specified float number (number before the decimal).*/
 	toInteger: function (num) {
 		num -= 0;
 		if (isNaN(num)) {
@@ -89,6 +93,7 @@ kony.math = {
 		return Math.floor(num);
 	},
 	
+	/**@Deprecated. This API raises the first parameter to the power of the second parameter and returns the result.*/
 	pow: function (num1, num2) {
 		
 		num1 -= 0;
@@ -101,7 +106,7 @@ kony.math = {
 		return Math.pow(num1, num2);
 	},
 
-	findExtreme: function(extreme, args) {
+		findExtreme: function(extreme, args) {
 		if (args.length < 2) {
 			throw new Error((extreme ? "math.max" : "math.min") + " needs atleast two arguments");
 		}
@@ -131,14 +136,17 @@ kony.math = {
 		return result;
 	},
 
+	/**@Deprecated. This API returns the minimum value among the arguments.*/
 	min: function () {
 		return kony.math.findExtreme(false, arguments);
 	},
 
+	/**@Deprecated. This API returns the maximum value among the arguments.*/
 	max: function () {
 		return kony.math.findExtreme(true, arguments);
 	},
 
+	/**@Deprecated. This API returns the square root of the given number.*/
 	sqrt: function (num) {
 		
 		num -= 0;
@@ -150,9 +158,10 @@ kony.math = {
 	}
 }
 
-
+/**The string Library has APIs that you can use to manipulate strings. The kony.string name space provides static string APIs. These static APIs augment the APIs in the Global string object which is available by default. For more information refer, https://developer.mozilla.org/en/JavaScript/Reference/Global_Objects/string.*/
 kony.string = {
 
+/**@Deprecated This API finds the first occurrence of the search string in the source string. */
     find : function () {
 		if (arguments.length < 2) {
 			throw new Error("string.find needs atleast two arguments");
@@ -183,12 +192,13 @@ kony.string = {
 		if (-1 === result) {
 			return null;
 		} else {
-			result++;
+			////result++;
 			//return result, result + arguments[1].length - 1;
 			return result;
 		}
 	},
 	
+	/**@Deprecated This API returns the length of the source string. */
 	len: function (s) {
 		if (0 === arguments.length) {
 			throw new Error("string.len needs atleast one argument");
@@ -203,6 +213,7 @@ kony.string = {
 		return arguments[0].length;
     },
 
+	/**@Deprecated This API compares the contents of two strings numerically. For example, "Adam" is smaller than "adam" as per the ASCII table because A(65) is smaller than a(97). */
     compare: function (s1, s2) {
 		if (arguments.length < 2) {
 			throw new Error("string.compare needs atleast two arguemnts");
@@ -221,7 +232,8 @@ kony.string = {
 		}
     },
 
-    charat: function (s1, index) {
+    /**@Deprecated This API returns a string which contains a single character from the source string at the specified index. */
+	charat: function (s1, index) {
 		if (arguments.length < 2) {
 			throw new Error("string.charat needs atleast two arguments");
 		}
@@ -237,7 +249,7 @@ kony.string = {
 			throw new Error("Invalid argument to string.charat");
 		}
 	
-		index--;
+		////index--;
 		if (index < 0 || index >= s1.length) {
 			return null;
 		}
@@ -260,15 +272,16 @@ kony.string = {
 	            return args[0].toLowerCase();
 	    }
     },
-	
+	/**@Deprecated This API changes the upper case characters of the source string to lower case characters. */
 	lower: function () {
 		return kony.string.flipCase(arguments, false);
 	},
-
+/**@Deprecated This API changes the lower case characters of the source string to upper case characters.*/
 	upper: function () {
 		return kony.string.flipCase(arguments, true);
 	},
 
+	/**This API generates a string which is equivalent to "n copies of the source string concatenated together".*/
 	rep: function (s,n) {
 		if (arguments.length < 2) {
 			throw new Error("Insufficient arguments to string.rep");
@@ -293,6 +306,7 @@ kony.string = {
 		return resultStr;
 	},
 	
+	/**This API reverses the characters in the source string.*/
 	reverse: function (s) {
 		if (0 === arguments.length) {
 			throw new Error("string.reverse needs atleast one argument");
@@ -311,7 +325,7 @@ kony.string = {
 	
 		return resultStr;
 	},
-	
+	/**This API removes the leading and ending spaces from the source string.*/
 	trim: function (s) {
         if (0 === arguments.length) {
               throw new Error("string.trim needs atleast one argument");
@@ -327,7 +341,7 @@ kony.string = {
  
         return s.replace(/^\s*/, "").replace(/\s*$/, "");
   },
-	
+	/**Determines whether two strings contain the same data, ignoring the case of the letters in the String. */
 	equalsIgnoreCase: function (s1, s2) {
 		if (arguments.length < 2) {
 			throw new Error("string.equalsIgnoreCase needs atleast two arguments");
@@ -367,23 +381,27 @@ kony.string = {
 			args[1] = args[1].toLowerCase();
 		}
 	
-	
 	    if (end) {
-	        return (args[0].lastIndexOf(args[1]) === args[0].length - args[1].length);
+	    	var ll = args[0].lastIndexOf(args[1]);
+	    	if(ll < 0){
+	    		return false;
+	    	}else{
+	        	return (args[0].lastIndexOf(args[1]) === args[0].length - args[1].length);
+	        }
 	    }
 	    else {
 	        return (args[0].indexOf(args[1]) === 0);
 	    }
 	},
-	
-	startsWith: function () {
+	/**This API returns a boolean value indicating if the source string begins with the specified string. */
+	startsWith: function (sourcestring, comparestring, ignorecase) {
 		return kony.string.matchEnds(arguments, false);
 	},
-	
-	endsWith: function () {
+	/**This API returns a boolean value indicating if the source string ends with the specified string. */
+	endsWith: function (sourcestring, comparestring, ignorecase) {
 		return kony.string.matchEnds(arguments, true);
 	},
-	
+	/**@Deprecated This API splits the source string based on the separator (default is comma) and returns a table containing the string. */
 	split: function (s, sep) {
 		if (0 === arguments.length) {
 			throw new Error("string.split needs atleast one argument");
@@ -414,7 +432,7 @@ kony.string = {
 		}
 		return splitstr;
 	},
-	
+	/**@Deprecated This API returns the substring of the source string. */
 	sub: function () {
 		function getIndex(i, len) {
 			if (typeof(i) === "string") {
@@ -424,7 +442,8 @@ kony.string = {
 			}
 	
 			if (i < 0) {
-				return (i + len + 1);
+				////return (i + len + 1);
+				return( i + len - 1);
 			} else if (i > len) {
 				return len;
 			}
@@ -464,11 +483,11 @@ kony.string = {
 		if (endIndex < startIndex || (0 === startIndex && endIndex === startIndex)) {
 			return "";
 		} else {
-			startIndex = adjustIndex(startIndex); endIndex = adjustIndex(endIndex);
+			////startIndex = adjustIndex(startIndex); endIndex = adjustIndex(endIndex);
 			return args[0].slice(startIndex, endIndex + 1);
 		}
 	},
-	
+	/**@Deprecated This API finds and replaces the occurrences of a string in the source string with a string you specify. */
 	replace: function (s, f, rep) {
 		if (arguments.length < 3) {
 			throw new Error("string.replace needs atleast three arguments");
@@ -534,7 +553,7 @@ kony.string = {
 			throw new Error("Invalid first argument to string.format");
 		}
 	}, */
-	
+	/** This API verifies if the input string contains only ASCII alphabet characters and returns a boolean value. */
 	isAsciiAlpha: function (s) {
 	
 		if (arguments.length === 0) {
@@ -548,7 +567,7 @@ kony.string = {
 		var regexp = new RegExp("[^a-zA-Z]","g");
 	    return (s == "") ? false : !(regexp.test(s));	
 	},
-	
+	/** This API verifies if the input string contains only ASCII alphabet characters and numbers, and returns a boolean value.*/
 	isAsciiAlphaNumeric: function (str) {
 	
 		if (arguments.length === 0) {
@@ -561,6 +580,7 @@ kony.string = {
 		return (!r1 && r2 && str) ? true : false;	
 	},
 	
+	/** This API verifies if the input string contains only numeric characters, and returns a boolean value.*/
 	isNumeric: function (s) {
 		if (arguments.length === 0) {
 			throw new Error("string.isNumeric needs atleast 1 argument");
@@ -572,7 +592,7 @@ kony.string = {
 	
 	    return (s == "" || (typeof(s) == "string" && s.replace(/\s/g,'').length == 0)) ? false : !(isNaN(s));
 	},
-	
+	/** This API verifies if any one of the specified set of characters is available in the given string and returns a boolean value.*/
 	containsChars: function (s, a) {
 		if (arguments.length === 0) {
 			throw new Error("string.containsChars needs 2 arguments");
@@ -598,14 +618,14 @@ kony.string = {
 		}
 	
 		charstr = charset.join("");
-		charstr = "[" + charstr + "]";
+		charstr = "[" + kony.string.escapeRegExp(charstr) + "]";
 	
 		var regexp = new RegExp(charstr,"g");
 		result = regexp.test(s);
 	
 		return result;
 	},
-	
+	/** This API verifies if only (and only) the specified set of characters is available in the given string and returns a boolean value.*/
 	containsOnlyGivenChars: function (s, a) {
 		if (arguments.length === 0) {
 			throw new Error("string.containsOnlyGivenChars needs atleast 1 argument");
@@ -626,7 +646,8 @@ kony.string = {
 		}
 	
 		charstr = charset.join("");
-		charstr = "[^" + charstr + "]";
+		//charstr = charstr.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&");
+		charstr = "[^" + kony.string.escapeRegExp(charstr) + "]";
 	
 		var regexp = new RegExp(charstr,"g");
 		result = regexp.test(s);
@@ -637,7 +658,7 @@ kony.string = {
 			return false;
 		}	
 	},
-	
+	/** This API verifies that the input string does not contain any of the specified characters and returns a boolean value.*/
 	containsNoGivenChars: function (s, a) {
 		if (arguments.length === 0) {
 			throw new Error("string.containsNoGivenChars needs 2 arguments");
@@ -663,7 +684,7 @@ kony.string = {
 		}
 	
 		charstr = charset.join("");
-		charstr = "[" + charstr + "]";
+		charstr = "[" + kony.string.escapeRegExp(charstr) + "]";
 	
 		var regexp = new RegExp(charstr,"g");
 		result = regexp.test(s);
@@ -674,7 +695,7 @@ kony.string = {
 			return false;
 		}	
 	},
-	
+	/** This API verifies if the input string is a valid email address and returns a boolean value.*/
 	isValidEmail: function (s) {
 		if (arguments.length === 0)
 			throw new Error("string.isValidEmail needs atleast 1 argument");
@@ -682,9 +703,10 @@ kony.string = {
 		var value = s;
 		if (typeof(value) !== "string")
 			return false;
-	
-		var emailPattern = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,4}$/;
-	    return emailPattern.test(value);
+		//(99.9% syntactic accuracy)
+		var emailPattern = /^((([a-z]|\d|[!#\$%&'\*\+\-\/=\?\^_`{\|}~]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])+(\.([a-z]|\d|[!#\$%&'\*\+\-\/=\?\^_`{\|}~]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])+)*)|((\x22)((((\x20|\x09)*(\x0d\x0a))?(\x20|\x09)+)?(([\x01-\x08\x0b\x0c\x0e-\x1f\x7f]|\x21|[\x23-\x5b]|[\x5d-\x7e]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(\\([\x01-\x09\x0b\x0c\x0d-\x7f]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF]))))*(((\x20|\x09)*(\x0d\x0a))?(\x20|\x09)+)?(\x22)))@((([a-z]|\d|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(([a-z]|\d|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])*([a-z]|\d|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])))\.)+(([a-z]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(([a-z]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])*([a-z]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])))$/i;
+
+		return emailPattern.test(value);
 	},
 	
 	escapeRegExp: function (text)
@@ -693,10 +715,14 @@ kony.string = {
 	}
 }
 
+/**@Deprecated This library provides generic functions for table manipulation. It provides all its functions inside the table.
 
+Most functions in the Table library assume that the table represents an array or a list. For these functions, when we talk about the "length" of a table we mean the result of the length operator.
+
+Note: This library is also available in JavaScript under the namespace kony.table. This is only for maintaining the backward compatibility for the application converted from Lua to JavaScript.*/
 kony.table = {
-
-	concat: function() {
+/**@Deprecated This API extracts all the elements of a table and concatenates the elements to form a string. A separator can be specified which can be placed between concatenated elements.*/
+	concat: function(inputtable, separator, startposition, endposition) {
 	
 	    var isArgsError = false;
 	    var isInternalError = false;
@@ -705,8 +731,8 @@ kony.table = {
 	    if (!arguments[0] instanceof Object) 
 	        isArgsError = true;
 	    if (!isArgsError) {
-	        var len = arguments[0].length - 1;
-	        var begin = 1, end = len, sep = "";
+	        var len = arguments[0].length;
+	        var begin = 0, end = len, sep = "";//4901
 	        var numArgs = arguments.length > 4 ? 4 : (arguments.length - 1);
 	        switch (arguments.length) {
 	            case 4:
@@ -717,10 +743,10 @@ kony.table = {
 	                end = arguments[3];
 	            case 3:
 	                arguments[2] -= 0;
-	                if (isNaN(arguments[2]) || arguments[2] <= 0) {
+	                if (isNaN(arguments[2]) || arguments[2] < 0) {
 	                    isArgsError = true;
 	                }
-	                begin = arguments[2] - 1;//5.0 Decremented index
+	                begin = arguments[2];
 	            case 2:
 	                sep = arguments[1];
 	            default:
@@ -751,6 +777,7 @@ kony.table = {
 	                            result += arguments[0][i].toString() + sep;
 	                        }
 	                        result += arguments[0][i].toString();
+     
 	                    } 
 	                    catch (e) {
 	                        isInternalError = true;
@@ -780,8 +807,8 @@ kony.table = {
 	    }	    
 	    return maxIndex;
 	},*/
-	
-	insert: function() {
+	/**@Deprecated This API inserts a specified value into the given table in the list part. If a position is specified, the value is inserted before the element currently at that position. If no position is specified, the value is appended to the end of the table. If the specified position is not within the range of the list part of the table, the new element is added to the hash part of the table.*/
+	insert: function(inputtable, position, value) {
 	
 	    var isArgsError = false;
 	    var isInternalError = false;
@@ -811,8 +838,10 @@ kony.table = {
 	        
 	        try {      
 					if (typeof pos == "string" || pos >= arguments[0].length || pos <= 0) {
-						if (pos == 0) {							
-							arguments[0][pos] = newItem;
+						if (pos == 0) {	
+							//DEF 3809
+							arguments[0].splice(pos,0,newItem);						
+							//arguments[0][pos] = newItem;
 						}
 						else {
 							arguments[0][pos] = newItem;
@@ -833,8 +862,8 @@ kony.table = {
 	    }
 	    return kony.table.returnResult(isArgsError, isInternalError);
 	},
-	
-	remove: function() {
+		/**@Deprecated This API removes an element from the list part of the table. If a position is specified, the element at the position is removed. If no position is specified, the last element in the table is removed. The removed element is returned. This API operates only on the list part of the table.*/
+	remove: function(inputtable, position) {
 	
 	    var isArgsError = false;
 	    var result = null;
@@ -845,7 +874,7 @@ kony.table = {
 	    
 		if (!isArgsError) {
 			var pos = arguments[0].length - 1 ;
-			if (pos > 0) {
+			if (pos >= 0) {
 				if (arguments.length > 1 && arguments[1] != null) {
 					arguments[1] -= 0;
 					if (isNaN(arguments[1]) || arguments[1] > pos || arguments[1] < 0) {
@@ -853,12 +882,12 @@ kony.table = {
 						return kony.table.returnResult(result, isArgsError, false);
 					}
 	
-					if (arguments[1] < pos && arguments[1] > 0) {
-						pos = arguments[1]-1;//5.0 Decremented
+					if (arguments[1] < pos && arguments[1] >= 0) {
+						pos = arguments[1]   //-1;//5.0 Decremented
 					}
 				}
 				result = arguments[0].splice(pos, 1);
-				result = result[0] || null;
+				result = result[0] ;
 				/*for(var i=pos;i > 0;i--){
 					result = args[0].arrayContainer.splice(i, 1);
 					if(result[0] == null && i == args[0].length()+1)
@@ -873,8 +902,8 @@ kony.table = {
 	    return kony.table.returnResult(result, isArgsError, false);
 	},
 	
-
-	sort: function() {
+/**@Deprecated This API sorts the elements of the input table and returns the modified table. This API sorts only the list part of the table and the hash part of the table is ignored.*/
+	sort: function(inputtable, sortkey, comparisonfunction) {
 	
 	    var isArgsError = false;
 	    var isInternalError = false;
@@ -897,17 +926,23 @@ kony.table = {
 	    if (!isArgsError) {
 	    	var len = arguments[0].length;
 			var pre = arguments[0];
+
+			if(arguments[0].length < 2){
+				//Can't do aything. Need more than one element to sort
+				return kony.table.returnResult(inputtable,false,false);
+			}
 			
 	        try {        
 	            for (var i = 0; i < len; i++) { //5.0 Decremented i
 	                var elemType = typeof(arguments[0][1]);
 	                if (arguments[0][i] == null || typeof(arguments[0][i]) != elemType) {
+	                	
 	                    return kony.table.returnResult(true, isInternalError);
 	                }                
 	            }
 	            
 	           // pre = arguments[0].slice(1);
-	            var zeroth = arguments[0].shift();
+	            //var zeroth = arguments[0].shift();
 				
 				//This is to splice the array to the length to which it has to be sorted
 				if(arguments[1] !== null && !isNaN(arguments[1]))						
@@ -959,7 +994,7 @@ kony.table = {
 	                    });
 	                    
 	                }
-	            pre.unshift(zeroth);
+	           // pre.unshift(zeroth);
 	           // pre = pre.concat(arguments[0]);
 	        } 
 	        catch (e) {
@@ -972,7 +1007,7 @@ kony.table = {
 		else 
 			return kony.table.returnResult(true, isInternalError);
 	},
-
+/**@Deprecated This API filters the given table based on the provided criteria and returns a set of values that match the given criteria.*/
 	filter: function(srctable, mapfunc) {
 	
 	
@@ -990,7 +1025,7 @@ kony.table = {
 	        
 	        if ((srctable instanceof Array)  && mapfunc) {
 				try {
-					tgttable = [null];
+					tgttable = [];
 					for (var i = 0; i < srctable.length; i++) {//5.0 Decremented i
 						value = srctable[i];
 						if (value instanceof Object) {
@@ -1049,8 +1084,8 @@ kony.table = {
 	    
 	    return kony.table.returnResult(tgttable, isArgsError, isInternalError);
 	},
-	
-	map: function(srctable, mapfunc) {
+	/**@Deprecated This API performs the given action on the input table and returns the modified table.*/
+	map : function(srctable, mapfunc) {
 	
 	    var isArgsError = false;
 	    var isInternalError = false;
@@ -1079,8 +1114,8 @@ kony.table = {
 							value = srctable[i];
 							retVals = mapfunc(i, value);
 							if (retVals !== false) {
-								key = retVals[1];
-								value = retVals[2];
+								key = retVals[0];
+								value = retVals[1];
 								srctable[key] = value;
 								retVals = false;
 							}
@@ -1101,8 +1136,8 @@ kony.table = {
 								retVals = mapfunc(key, value);
 								
 								if (retVals !== false) {
-									key = retVals[1];
-									value = retVals[2];
+									key = retVals[0];
+									value = retVals[1];
 									srctable[key] =  value;
 									retVals = false;
 								}
@@ -1119,11 +1154,11 @@ kony.table = {
 				isInternalError = true;
 			}
 	    }
-	    
-	    return kony.table.returnResult(isArgsError, isInternalError);
+	    //srctable added for JSPFQA5653
+	    return kony.table.returnResult(srctable, isArgsError, isInternalError);
 	    
 	},
-		
+	/**@Deprecated This API performs the given action on the input table and returns a new table.*/	
 	mapNew: function(srctable, mapfunc){
 	
 	    var isArgsError = false;
@@ -1154,12 +1189,12 @@ kony.table = {
 					
 					try {
 						
-						tgttable = [null]; 
+						tgttable = []; 
 						for (var i = 0; i < len; i++) {//5.0 Decremented i
 							value = srctable[i];
 							retVals = mapfunc(i, value);
-							key = retVals[1];
-							value = retVals[2];
+							key = retVals[0];
+							value = retVals[1];
 							tgttable[key] = value;
 						}
 					} 
@@ -1178,8 +1213,8 @@ kony.table = {
 								retVals = mapfunc(key, value);
 								
 								if (retVals !== false) {
-									key = retVals[1];
-									value = retVals[2];
+									key = retVals[0];
+									value = retVals[1];
 									tgttable[key] =  value;
 									retVals = false;
 								}
@@ -1202,7 +1237,7 @@ kony.table = {
 	    return kony.table.returnResult(tgttable, isArgsError, isInternalError);
 	    
 	},
-
+/**@Deprecated This API searches the given input table and returns the value at the specified key; if the key is a number, this API returns the value at the index.*/	
 	get: function(srctable, key) {
 	
 	    var isArgsError = false;
@@ -1228,7 +1263,7 @@ kony.table = {
 		
 	    return kony.table.returnResult(result, isArgsError, isInternalError, invalidKey);
 	},
-
+/**@Deprecated Tests if the specified key is part of the table.*/	
 	contains: function(srctable, key) {
 	
 	    var isArgsError = false;
@@ -1248,7 +1283,7 @@ kony.table = {
 	    }
 	    return kony.table.returnResult(result, isArgsError, isInternalError);
 	},
-
+/**@Deprecated This API appends the content of the source table to the target table and returns the modified target table.*/	
 	append: function(tgttable, srctable) {
 	
 	    var isArgsError = false;
@@ -1261,9 +1296,9 @@ kony.table = {
 	      
 	    try {
 	        if (tgttable.length && srctable.length) {
-	            var srcarray = srctable.slice(1);
-				for (var i = 0; i < srcarray.length; i++) {
-					tgttable.push(srcarray[i]);
+	          ////  var srcarray = srctable.slice(1);   //4906
+				for (var i = 0; i < srctable.length; i++) {
+					tgttable.push(srctable[i]);
 				}
 	        } else {
 	                    
@@ -1278,7 +1313,7 @@ kony.table = {
 	
 	    return kony.table.returnResult(tgttable, isArgsError, isInternalError);
 	},
-	
+	/**@Deprecated This API removes data from the table represented by the table id.*/	
 	removeAll: function(srctable) {
 	
 	    if (arguments.length < 1) {
@@ -1301,7 +1336,11 @@ kony.table = {
 	    return;
 	},
 	
-	
+	/**@Deprecated unpack
+
+This API returns the elements from the given table. This function is equivalent to
+
+return list[i], list[i+1], .... list[j].*/	
 	unpack: function (t1) {
        
 	    if (0 === arguments.length) {
@@ -1335,12 +1374,16 @@ kony.table = {
         if (beginIndex > endIndex) {
                 return [""];
         } else {
-                var retVals = [null];				
-                for (var i = beginIndex; i <= endIndex; i++) {
-                        retVals.push(arguments[0][i]);
+                var retVals = "";//[];		//4907		
+                for (var i = beginIndex; i < endIndex; i++) {
+                        //retVals.push(arguments[0][i]);
+                        if(i == 0){
+                        	retVals = arguments[0][i];
+                        }else{
+                        	retVals = retVals + " " + arguments[0][i];
+                        }
                 }
-
-                return retVals;
+                return  retVals;
         }
 	},
 
@@ -1430,17 +1473,13 @@ kony.table = {
 	}
 }
 
-
-if (typeof(kony.os) == "undefined"){
-	kony.os = {};
-}
-
+/**@Deprecated This API returns the current time as a string in hh:mm:ss format. The time is represented in 12 hour format.*/
 	kony.os.time = function () {
 		var timeStr = (new Date()).toTimeString();
 	
 		return timeStr.slice(0, timeStr.indexOf(" "));
 	};
-	
+	/**@Deprecated This API returns the number of seconds between the first input parameter (t1) to the second input parameter (t2).*/
 	kony.os.diffDateTime = function (time1, time2) {
 		
 		if (typeof(time1) !== "string" || typeof(time2) !== "string") {
@@ -1455,7 +1494,7 @@ if (typeof(kony.os) == "undefined"){
 	
 		return (t1sec > one_day || t2sec > one_day ) ? null : t1sec - t2sec;
 	};
-	
+	/**@Deprecated This API formats the current date to the given format.*/
 	kony.os.date = function () {
 			
 		var result;
@@ -1498,7 +1537,7 @@ if (typeof(kony.os) == "undefined"){
 	      } else 
 	          return null;
 	};
-
+/**This API allows you to convert the given number to represent currency. At present, only USA currency is supported.*/
 	kony.os.toCurrency = function (arg) {
 		
 		arg -= 0;
@@ -1521,7 +1560,7 @@ if (typeof(kony.os) == "undefined"){
 	
 		return "$" + outStr;
 	};
-	
+	/**This API converts the argument to a number. If the argument is already a number or a string convertible to a number, then the API returns this number; otherwise, it returns null for JavaScript and nil for Lua.*/
 	kony.os.toNumber = function (arg) {
 		
 		if (arguments.length != 1) {
@@ -1544,7 +1583,7 @@ if (typeof(kony.os) == "undefined"){
 			return null;
 		}
 	};
-
+	/**@Deprecated This API returns the difference in dates or compares two dates for equality.*/
 	//os.compareDates(date1,date2,"format") - dd,mm,yyyy,yy 
 	kony.os.compareDates = function (d1, d2, frmt){
 		
@@ -1557,7 +1596,7 @@ if (typeof(kony.os) == "undefined"){
 		
 		return parseInt((date1.getTime() - date2.getTime())/oneday);	
 	};
-
+/**@Deprecated This API adds or subtracts units (days, hours, minutes, month, or years) to the given date.*/
 	//os.addToDate(date1,format,units,count) - units : days,hours,minutes,month,years
 	// Format"dd/mm/yyyy" or "mm/dd/yyyy" or mm/dd/yy
 	kony.os.addToDate = function (d1, frmt, unt, cnt){
@@ -1604,7 +1643,7 @@ if (typeof(kony.os) == "undefined"){
 		}		
 		return null;
 	};
-	
+	/**@Deprecated This API checks if the input year is a leap year.*/
 	//os.isLeapYear(yyyy) 
 	kony.os.isLeapYear = function (d1, frmt) {
 		var year;
@@ -1627,7 +1666,7 @@ if (typeof(kony.os) == "undefined"){
 	  		return false;
 	 	} 		 
 	};
-
+/**@Deprecated This API converts a given date string to the target format and returns the formatted date. Format will use the tokens dd,mm,yyyy to indicate day, month, and year respectively. The delimiter used between the tokens can be any character. For example, dd/mm/yyyy and (dd)(mm)(yyyy) are valid inputs.*/
 	//os.formatdate(inputdate[string],sourceformat[string],targetformat[string])
 	kony.os.formatDate = function (d1, sfrmt, tgtfrmt) {
 		
@@ -1682,12 +1721,12 @@ if (typeof(kony.os) == "undefined"){
 		}	
 		return null;
 	};
-
+/**@Deprecated This API returns the various date components of a specified date (in a specified format) or the current system date.*/
 	//os.isvaliddate(date,format) 
 	kony.os.isValidDate = function (date, frmt) {		
 		return (arguments.length != 2 || date == null || frmt == null) ? false :kony.os.isvaliddate(date, frmt);		
 	};
-
+/**@Deprecated This API returns the various date components of a specified date (in a specified format) or the current system date.*/
 	//os.dateComponents(date, format);
 	//Formats supported:  (dd/mm/yyyy , mm/dd/yyyy, dd/mm/yy , mm/dd/yy) 
 	kony.os.dateComponents = function (date,frmt){
@@ -1729,14 +1768,14 @@ if (typeof(kony.os) == "undefined"){
 	kony.os.padZero = function (num) {
 	    return num < 10 ? ("0"+num) : num;
 	};
-	
+/**@Deprecated This API converts a given date string to the target format and returns the formatted date. Format will use the tokens dd,mm,yyyy to indicate day, month, and year respectively. The delimiter used between the tokens can be any character. For example, dd/mm/yyyy and (dd)(mm)(yyyy) are valid inputs.*/	
 	kony.os.formatdate = function (fmt, dateObj) {
 		fmt = fmt.toLowerCase();
 	    fmt = fmt.replace(/dd/, kony.os.padZero(dateObj.getDate()));
 	    fmt = fmt.replace(/mm/, kony.os.padZero(dateObj.getMonth() + 1));
 	    return fmt.replace(/(yyyy|yy)/, fmt.indexOf("yyyy") == -1 ? dateObj.getFullYear().toString().substr(2, 2) : dateObj.getFullYear());
 	};
-
+/**@Deprecated This API returns the various date components of a specified date (in a specified format) or the current system date.*/
 	 //Valid formats mm/dd/yy and mm/dd/yyyy and dd/mm/yyyy		
     kony.os.isvaliddate = function(dtStr, format){
         var minYear = 1900;
@@ -1872,3 +1911,7 @@ if (typeof(kony.os) == "undefined"){
             return true;
         }
     };
+	
+
+	
+	

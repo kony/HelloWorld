@@ -465,6 +465,7 @@
         </onDestroy>
         <bbMenuPosition>FORM_MENU_POSITION_AFTER_APPMENU</bbMenuPosition>
         <androidMenuPosition>FORM_MENU_POSITION_AFTER_APPMENU</androidMenuPosition>
+        <iphone_bounces>true</iphone_bounces>
         <iphone_inputaccessoryviewtype>default</iphone_inputaccessoryviewtype>
         <iphoneMenuRenderer>true</iphoneMenuRenderer>
         <iphone_transDirection>0</iphone_transDirection>
@@ -530,6 +531,7 @@
         <iphone_footer_overlap>0</iphone_footer_overlap>
         <iphone_footerOverlap>false</iphone_footerOverlap>
         <iphone_headerOverlap>false</iphone_headerOverlap>
+        <ipad_bounces>true</ipad_bounces>
         <ipad_inputaccessoryviewtype>default</ipad_inputaccessoryviewtype>
         <ipad_footer_overlap>0</ipad_footer_overlap>
         <ipad_footerOverlap>false</ipad_footerOverlap>
@@ -660,6 +662,12 @@
                 <seqname></seqname>
             </evtSequence>
         </android_onDeviceMenu>
+        <android_onActionBarBack>
+            <evtSequence>
+                <enabled>true</enabled>
+                <seqname></seqname>
+            </evtSequence>
+        </android_onActionBarBack>
         <palmpreTitleBarData>
             <imagePath></imagePath>
             <imgEvtData>
@@ -689,6 +697,9 @@
         </androidTitleBarData>
         <android_softkeyMode>SoftInput adjust resize</android_softkeyMode>
         <android_transition_out_effect>0</android_transition_out_effect>
+        <android_showActionBar>true</android_showActionBar>
+        <android_showActionBarIcon>true</android_showActionBarIcon>
+        <android_actionBarIcon></android_actionBarIcon>
         <tc_titlebar>true</tc_titlebar>
         <tcHtml5CaptureGPS>false</tcHtml5CaptureGPS>
         <tc_securedata>false</tc_securedata>
@@ -1391,6 +1402,7 @@
             </gridviewConfig>
             <symbian_position>0</symbian_position>
             <tooltip></tooltip>
+            <tc_position>0</tc_position>
             <TCBlockedUISkin>Skin Defaults</TCBlockedUISkin>
             <wapDirection>0</wapDirection>
             <spa_blockedUISkin>Skin Defaults</spa_blockedUISkin>
@@ -2034,6 +2046,7 @@
                 <iphone_downloadProgressIndicator>true</iphone_downloadProgressIndicator>
                 <ipad_glossy_effect>0</ipad_glossy_effect>
                 <ipad_downloadProgressIndicator>true</ipad_downloadProgressIndicator>
+                <c_ToolTip></c_ToolTip>
                 <tooltip></tooltip>
                 <onDownloadComplete_root>
                     <evtSequence>
@@ -2766,6 +2779,7 @@
             <bb_content_align>1</bb_content_align>
             <bb_display_text>true</bb_display_text>
             <j2me_content_align>1</j2me_content_align>
+            <c_ToolTip></c_ToolTip>
             <tooltip></tooltip>
             <android_display_text>true</android_display_text>
             <android_pressed_skin>Skin Defaults</android_pressed_skin>
@@ -3453,6 +3467,7 @@
             </gridviewConfig>
             <symbian_position>0</symbian_position>
             <tooltip></tooltip>
+            <tc_position>0</tc_position>
             <TCBlockedUISkin>Skin Defaults</TCBlockedUISkin>
             <wapDirection>0</wapDirection>
             <spa_blockedUISkin>Skin Defaults</spa_blockedUISkin>
@@ -4088,6 +4103,7 @@
                 <ipad_longtext>false</ipad_longtext>
                 <ipad_wrapping>0</ipad_wrapping>
                 <ipad_content_align>0</ipad_content_align>
+                <c_ToolTip></c_ToolTip>
                 <tooltip></tooltip>
                 <bb_longtext>false</bb_longtext>
                 <bb_content_align>0</bb_content_align>
@@ -4168,6 +4184,9 @@
                 <seqname></seqname>
             </evtSequence>
         </bb10_onEscape10_root>
+        <bb10_softkeyMode>FORM_ADJUST_RESIZE</bb10_softkeyMode>
+        <bb10_showbottomactionbar>true</bb10_showbottomactionbar>
+        <bb10_enablepeekgesture>true</bb10_enablepeekgesture>
     </children>
     <children xsi:type="kMenuContainer" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
         <ID></ID>
