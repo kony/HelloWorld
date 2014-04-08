@@ -573,8 +573,8 @@ kony.string = {
 		if (arguments.length === 0) {
 			throw new Error("string.isAsciiAlphaNumeric needs atleast 1 argument");
 		}
-		var p1 = /[^a-z0-9]/i;	// Elimimate non alpha numeric chars
-		var p2 = /([a-z]+[0-9])|([0-9]+[a-z])/i;
+		var p1 = /[^a-zA-Z0-9]/i;	// Elimimate non alpha numeric chars //Added cap letters also 
+		var p2 = /^[a-zA-Z0-9]*$/i; /* Wrong regex   /([a-z]+[0-9])|([0-9]+[a-z])/i; */
 		var r1 = str.match(p1);
 		var r2 = str.match(p2);	
 		return (!r1 && r2 && str) ? true : false;	

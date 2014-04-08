@@ -2117,6 +2117,8 @@
                 <windows8_hoverskin>Skin Defaults</windows8_hoverskin>
                 <winphone8_skin>Skin Defaults</winphone8_skin>
                 <bb10_skin>Skin Defaults</bb10_skin>
+                <containerWeight>0</containerWeight>
+                <projectState>0</projectState>
             </children>
             <general_contextMenu>None</general_contextMenu>
             <desktopweb_onRightClick>
@@ -2126,6 +2128,8 @@
                 </evtSequence>
             </desktopweb_onRightClick>
             <winphone8_position>0</winphone8_position>
+            <containerWeight>0</containerWeight>
+            <projectState>0</projectState>
         </children>
         <children xsi:type="khBox">
             <ID>hbxClickBtn</ID>
@@ -3492,6 +3496,8 @@
                 <winphone8_contentalign>middle-center</winphone8_contentalign>
                 <bb10_contentalignment>1</bb10_contentalignment>
                 <bb10displaytext>true</bb10displaytext>
+                <containerWeight>0</containerWeight>
+                <projectState>0</projectState>
             </children>
             <general_contextMenu>None</general_contextMenu>
             <desktopweb_onRightClick>
@@ -3501,6 +3507,8 @@
                 </evtSequence>
             </desktopweb_onRightClick>
             <winphone8_position>0</winphone8_position>
+            <containerWeight>0</containerWeight>
+            <projectState>0</projectState>
         </children>
         <children xsi:type="khBox">
             <ID>hbxTitle</ID>
@@ -4798,6 +4806,8 @@
                 <windows8_hoverskin>Skin Defaults</windows8_hoverskin>
                 <winphone8_contentalign>middle-left</winphone8_contentalign>
                 <bb10_contentalignment>0</bb10_contentalignment>
+                <containerWeight>0</containerWeight>
+                <projectState>0</projectState>
             </children>
             <general_contextMenu>None</general_contextMenu>
             <desktopweb_onRightClick>
@@ -4807,6 +4817,8 @@
                 </evtSequence>
             </desktopweb_onRightClick>
             <winphone8_position>0</winphone8_position>
+            <containerWeight>0</containerWeight>
+            <projectState>0</projectState>
         </children>
         <overrideProperties>KForm.androidtitleBar</overrideProperties>
         <overrideProperties>KForm.bbTitleBar</overrideProperties>
@@ -4859,6 +4871,8 @@
         <bb10_softkeyMode>FORM_ADJUST_RESIZE</bb10_softkeyMode>
         <bb10_showbottomactionbar>true</bb10_showbottomactionbar>
         <bb10_enablepeekgesture>true</bb10_enablepeekgesture>
+        <containerWeight>0</containerWeight>
+        <projectState>0</projectState>
     </children>
     <children xsi:type="kMenuContainer" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
         <ID></ID>
@@ -5480,6 +5494,8 @@
         </paddings>
         <tooltip></tooltip>
         <contentAlign>4</contentAlign>
+        <containerWeight>0</containerWeight>
+        <projectState>0</projectState>
     </children>
     <contentAlign>4</contentAlign>
     <gridviewConfig>
@@ -5487,4 +5503,6 @@
         <referenceWidth>0</referenceWidth>
         <sizeMode>constants.GRID_TYPE_FIXED</sizeMode>
     </gridviewConfig>
+    <containerWeight>0</containerWeight>
+    <projectState>0</projectState>
 </kPage>
