@@ -17,9 +17,10 @@
     <attributes name="READ_SMS" value="false"/>
     <attributes name="applepushfunc" value="None"/>
     <attributes name="Internet(Client)" value="true"/>
+    <attributes name="cloud_web_xml_custom_others" value=""/>
+    <attributes name="certs_trust_store_pwd" value="kds/0eUc+i3BqFqSkpCk4g=="/>
     <attributes name="MODIFY_AUDIO_SETTINGS" value="false"/>
     <attributes name="tcnth480basefontsize" value="17"/>
-    <attributes name="hybridaddrkey" value=""/>
     <attributes name="GLOBAL_SEARCH" value="false"/>
     <attributes name="winsmoothscrollkey" value="true"/>
     <attributes name="CLEAR_APP_USER_DATA" value="false"/>
@@ -28,6 +29,7 @@
     <attributes name="ACCESS_COARSE_LOCATION" value="false"/>
     <attributes name="RESTART_PACKAGES" value="false"/>
     <attributes name="ID_CAP_PHONEDIALER" value="true"/>
+    <attributes name="certs_trust_store_type" value="JKS"/>
     <attributes name="WP8_ID_CAP_WALLET_PAYMENTINSTRUMENTS" value="true"/>
     <attributes name="removeprintstatements" value="true"/>
     <attributes name="appversionkey" value="1.0.0"/>
@@ -59,6 +61,7 @@
     <attributes name="androidmapkey" value=""/>
     <attributes name="enablesearchbar" value="false"/>
     <attributes name="wp8descriptionkey" value="Sample Test Application"/>
+    <attributes name="cloud_web_xml_custom_mappings" value=""/>
     <attributes name="BROADCAST_STICKY" value="false"/>
     <attributes name="SET_PROCESS_LIMIT" value="false"/>
     <attributes name="GET_ACCOUNTS" value="false"/>
@@ -75,8 +78,8 @@
     <attributes name="DUMP" value="false"/>
     <attributes name="SET_ORIENTATION" value="false"/>
     <attributes name="ID_REQ_FRONTCAMERA" value="false"/>
-    <attributes name="win8packagedisplaynamekey" value="HelloWorld"/>
     <attributes name="desktopwebresizecontent" value="false"/>
+    <attributes name="win8packagedisplaynamekey" value="HelloWorld"/>
     <attributes name="spawindowstabbasefontsize" value="17"/>
     <attributes name="MANAGE_ACCOUNTS" value="false"/>
     <attributes name="androidscreenanydensity" value="true"/>
@@ -111,18 +114,18 @@
     <attributes name="HARDWARE_TEST" value="false"/>
     <attributes name="WP8_ID_CAP_APPOINTMENTS" value="true"/>
     <attributes name="USE_CREDENTIALS" value="false"/>
+    <attributes name="cloud_web_xml_custom_listeners" value=""/>
     <attributes name="GET_PACKAGE_SIZE" value="false"/>
     <attributes name="allowselfsignedcertificate" value="false"/>
     <attributes name="NFC" value="false"/>
-    <attributes name="tcnth240basefontsize" value="12"/>
     <attributes name="tcbb480basefontsize" value="17"/>
+    <attributes name="tcnth240basefontsize" value="12"/>
     <attributes name="desktopwebnoscriptmessage" value="To use this site, first enable your browser&#039;s JavaScript support and then refresh this page."/>
     <attributes name="tcbb360basefontsize" value="13"/>
     <attributes name="WP8_ID_CAP_PHONEDIALER" value="true"/>
     <attributes name="bgcolorkey" value="181,217,245"/>
     <attributes name="BIND_APPWIDGET" value="false"/>
     <attributes name="wp8cycle5key" value=""/>
-    <attributes name="hybdridcontextkey" value=""/>
     <attributes name="ipadlandscapemodekey" value="true"/>
     <attributes name="KILL_BACKGROUND_PROCESSES" value="false"/>
     <attributes name="tcnth400basefontsize" value="14"/>
@@ -176,6 +179,7 @@
     <attributes name="WRITE_EXTERNAL_STORAGE" value="false"/>
     <attributes name="tcbb440basefontsize" value="15"/>
     <attributes name="win8descriptionkey" value="Sample Test Application"/>
+    <attributes name="extendTop" value="false"/>
     <attributes name="REORDER_TASKS" value="false"/>
     <attributes name="iphonebundleidentifierkey" value="com.kony.HelloWorld"/>
     <attributes name="WP8_ID_CAP_NETWORKING" value="true"/>
@@ -184,6 +188,7 @@
     <attributes name="EXPAND_STATUS_BAR" value="false"/>
     <attributes name="enableactionbar" value="false"/>
     <attributes name="WAKE_LOCK" value="false"/>
+    <attributes name="cloud_config_ipaddress_list" value=""/>
     <attributes name="project.type" value="js"/>
     <attributes name="tcxhtmlbasefontsize" value="10"/>
     <attributes name="ID_CAP_CONTACTS" value="true"/>
@@ -207,7 +212,7 @@
     <attributes name="tcphoneformatindicator" value="false"/>
     <attributes name="Location" value="true"/>
     <attributes name="ACCESS_SURFACE_FLINGER" value="false"/>
-    <attributes name="currentgaversion" value="5.5.46.QA_v201404041631_r1"/>
+    <attributes name="currentgaversion" value="5.6.18.QA_v201406021929_r2"/>
     <attributes name="mwhttpsportkey" value=""/>
     <attributes name="pathkey" value=""/>
     <attributes name="vendornamekey" value="KonyLabs"/>
@@ -224,10 +229,11 @@
     <attributes name="Internet(Client_AND_Server)" value="true"/>
     <attributes name="ID_CAP_ISV_CAMERA" value="true"/>
     <attributes name="access_sms_mms" value="false"/>
+    <attributes name="certs_key_store_type" value="JKS"/>
     <attributes name="wp8enforceMaxMemory" value="false"/>
     <attributes name="urlschemanameorder" value=""/>
-    <attributes name="win8packagelogokey" value=""/>
     <attributes name="desktopwebwidthoption" value="Percentage"/>
+    <attributes name="win8packagelogokey" value=""/>
     <attributes name="CAMERA" value="false"/>
     <attributes name="WP8_ID_CAP_MEDIALIB_PHOTO" value="true"/>
     <attributes name="access_location_services" value="false"/>
@@ -239,6 +245,7 @@
     <attributes name="apploadeventkey" value="None"/>
     <attributes name="CALL_PHONE" value="false"/>
     <attributes name="INSTALL_PACKAGES" value="false"/>
+    <attributes name="usegoogleplaylocationservices" value="false"/>
     <attributes name="tcbb320basefontsize" value="15"/>
     <attributes name="wp8cycle1key" value=""/>
     <attributes name="desktopwebtitle" value=""/>
@@ -249,10 +256,12 @@
     <attributes name="SUBSCRIBED_FEEDS_WRITE" value="false"/>
     <attributes name="ipadportraitmodekey" value="true"/>
     <attributes name="wp8doNotInstalllowerMemory" value="false"/>
+    <attributes name="cloud_http_redirect" value="false"/>
     <attributes name="appnamekey" value="HelloWorld"/>
+    <attributes name="log_level" value="ERROR"/>
     <attributes name="andtargetsdkkey" value="2.3.3"/>
-    <attributes name="READ_LOGS" value="false"/>
     <attributes name="deeplinkkey" value="None"/>
+    <attributes name="READ_LOGS" value="false"/>
     <attributes name="WRITE_GSERVICES" value="false"/>
     <attributes name="wp8packageversionkey" value=""/>
     <attributes name="CHANGE_CONFIGURATION" value="false"/>
@@ -283,6 +292,7 @@
     <attributes name="andmaxsdkkey" value="None"/>
     <attributes name="wp8iconcountnotificationkey" value="false"/>
     <attributes name="READ_SYNC_SETTINGS" value="false"/>
+    <attributes name="statusBarStyle" value="STATUS_BAR_STYLE_DEFAULT"/>
     <attributes name="WRITE_HISTORY_BOOKMARKS" value="false"/>
     <attributes name="INTERNET" value="true"/>
     <attributes name="enablepushnotifications" value="false"/>
@@ -311,21 +321,25 @@
     <attributes name="tcandroid640basefontsize" value="19"/>
     <attributes name="winmangotiletitlekey" value="HelloWorld"/>
     <attributes name="WP8_ID_CAP_ISV_CAMERA" value="true"/>
-    <attributes name="hybridhttpsportkey" value=""/>
     <attributes name="READ_CALENDAR" value="false"/>
+    <attributes name="cloud_web_xml_custom_filters" value=""/>
     <attributes name="Removable_Storage" value="true"/>
     <attributes name="access_pimdomain_contacts" value="false"/>
     <attributes name="androidInstallLocnPref" value="false"/>
     <attributes name="tcpalm240basefontsize" value="10"/>
     <attributes name="CHANGE_WIFI_MULTICAST_STATE" value="false"/>
+    <attributes name="cloud_url" value="http://127.0.0.1:8080"/>
+    <attributes name="certs_key_store_pwd" value="kds/0eUc+i3BqFqSkpCk4g=="/>
     <attributes name="CALL_PRIVILEGED" value="false"/>
     <attributes name="SUBSCRIBED_FEEDS_READ" value="false"/>
     <attributes name="supportX86Devices" value="false"/>
     <attributes name="antialiaseddrawing" value="false"/>
     <attributes name="READ_PHONE_STATE" value="true"/>
     <attributes name="sessionmanager" value="Kony Session Manager"/>
+    <attributes name="extendBottom" value="false"/>
     <attributes name="appversioncode" value="1"/>
     <attributes name="RECEIVE_WAP_PUSH" value="false"/>
+    <attributes name="cloud_selected_ipaddress_list" value="http://127.0.0.1:8080,http://10.10.12.29:8080"/>
     <attributes name="customgcmbroadcastreceiver" value=""/>
     <attributes name="WP8_ID_CAP_REMOVABLE_STORAGE" value="true"/>
     <attributes name="MODIFY_PHONE_STATE" value="false"/>
@@ -338,7 +352,6 @@
     <attributes name="bb10description" value=""/>
     <attributes name="ACCESS_LOCATION_EXTRA_COMMANDS" value="false"/>
     <attributes name="appaddrkey" value="https://api.kony.com/api/v1_0/environments/f176d22c-3870-471c-b102-d228e0ac408e/"/>
-    <attributes name="hybridportkey" value=""/>
     <attributes name="andmanifesttags" value=""/>
     <attributes name="WRITE_CONTACTS" value="false"/>
     <attributes name="VIBRATE" value="false"/>
@@ -358,6 +371,7 @@
     <attributes name="wp8lockscreenbackgroundkey" value="false"/>
     <attributes name="WP8_ID_CAP_SPEECH_RECOGNITION" value="true"/>
     <attributes name="ID_REQ_NFC" value="false"/>
+    <attributes name="certs_ssl_algorithm" value="TLS"/>
     <attributes name="wp8textnotificationkey" value="false"/>
     <attributes name="iphoneurlscheme" value=""/>
     <attributes name="STATUS_BAR" value="false"/>
@@ -376,9 +390,9 @@
     <attributes name="SET_ACTIVITY_WATCHER" value="false"/>
     <attributes name="tcnth320basefontsize" value="15"/>
     <attributes name="WP8_ID_CAP_WALLET" value="true"/>
+    <attributes name="svcaddrkey" value="https://api.kony.com/api/v1_0/environments/f176d22c-3870-471c-b102-d228e0ac408e/"/>
     <attributes name="WP8_ID_CAP_WEBBROWSERCOMPONENT" value="true"/>
     <attributes name="ID_CAP_CAMERA" value="false"/>
-    <attributes name="svcaddrkey" value="https://api.kony.com/api/v1_0/environments/f176d22c-3870-471c-b102-d228e0ac408e/"/>
     <attributes name="spaandroidtab1024basefontsize" value="16"/>
     <attributes name="SIGNAL_PERSISTENT_PROCESSES" value="false"/>
     <attributes name="tcbb240basefontsize" value="12"/>
@@ -390,6 +404,7 @@
     <attributes name="tcandroid480basefontsize" value="16"/>
     <attributes name="BROADCAST_SMS" value="false"/>
     <attributes name="tcandroid320basefontsize" value="12"/>
+    <attributes name="cloud_env_name" value=""/>
     <attributes name="ID_REQ_REARCAMERA" value="false"/>
     <attributes name="tcandroid360basefontsize" value="13"/>
     <attributes name="win8displaynamekey" value="HelloWorld"/>

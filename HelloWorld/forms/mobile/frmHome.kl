@@ -2119,6 +2119,12 @@
                 <bb10_skin>Skin Defaults</bb10_skin>
                 <containerWeight>0</containerWeight>
                 <projectState>0</projectState>
+                <a11yConfig>
+                    <a11yHidden>false</a11yHidden>
+                    <a11yHint></a11yHint>
+                    <a11yLabel></a11yLabel>
+                    <a11yValue></a11yValue>
+                </a11yConfig>
             </children>
             <general_contextMenu>None</general_contextMenu>
             <desktopweb_onRightClick>
@@ -2130,6 +2136,12 @@
             <winphone8_position>0</winphone8_position>
             <containerWeight>0</containerWeight>
             <projectState>0</projectState>
+            <a11yConfig>
+                <a11yHidden>false</a11yHidden>
+                <a11yHint></a11yHint>
+                <a11yLabel></a11yLabel>
+                <a11yValue></a11yValue>
+            </a11yConfig>
         </children>
         <children xsi:type="kButton">
             <ID>btnClickMe</ID>
@@ -2847,6 +2859,12 @@
             <bb10displaytext>true</bb10displaytext>
             <containerWeight>0</containerWeight>
             <projectState>0</projectState>
+            <a11yConfig>
+                <a11yHidden>false</a11yHidden>
+                <a11yHint></a11yHint>
+                <a11yLabel></a11yLabel>
+                <a11yValue></a11yValue>
+            </a11yConfig>
         </children>
         <children xsi:type="khBox">
             <ID>hbxTitle</ID>
@@ -4146,6 +4164,12 @@
                 <bb10_contentalignment>0</bb10_contentalignment>
                 <containerWeight>0</containerWeight>
                 <projectState>0</projectState>
+                <a11yConfig>
+                    <a11yHidden>false</a11yHidden>
+                    <a11yHint></a11yHint>
+                    <a11yLabel></a11yLabel>
+                    <a11yValue></a11yValue>
+                </a11yConfig>
             </children>
             <general_contextMenu>None</general_contextMenu>
             <desktopweb_onRightClick>
@@ -4157,6 +4181,12 @@
             <winphone8_position>0</winphone8_position>
             <containerWeight>0</containerWeight>
             <projectState>0</projectState>
+            <a11yConfig>
+                <a11yHidden>false</a11yHidden>
+                <a11yHint></a11yHint>
+                <a11yLabel></a11yLabel>
+                <a11yValue></a11yValue>
+            </a11yConfig>
         </children>
         <overrideProperties>KForm.androidtitleBar</overrideProperties>
         <overrideProperties>KForm.bbTitleBar</overrideProperties>
@@ -4209,8 +4239,26 @@
         <bb10_softkeyMode>FORM_ADJUST_RESIZE</bb10_softkeyMode>
         <bb10_showbottomactionbar>true</bb10_showbottomactionbar>
         <bb10_enablepeekgesture>true</bb10_enablepeekgesture>
+        <iphone_extendTop>false</iphone_extendTop>
+        <ipad_extendTop>false</ipad_extendTop>
+        <iphone_extendBottom>false</iphone_extendBottom>
+        <ipad_extendBottom>false</ipad_extendBottom>
+        <iphone_statusBarStyle>STATUS_BAR_STYLE_DEFAULT</iphone_statusBarStyle>
+        <ipad_statusBarStyle>STATUS_BAR_STYLE_DEFAULT</ipad_statusBarStyle>
+        <iphone_configureExtendTop>false</iphone_configureExtendTop>
+        <iphone_configureExtendBottom>false</iphone_configureExtendBottom>
+        <iphone_configureStatusBarStyle>false</iphone_configureStatusBarStyle>
+        <ipad_configureExtendTop>false</ipad_configureExtendTop>
+        <ipad_configureExtendBottom>false</ipad_configureExtendBottom>
+        <ipad_configureStatusBarStyle>false</ipad_configureStatusBarStyle>
         <containerWeight>0</containerWeight>
         <projectState>0</projectState>
+        <a11yConfig>
+            <a11yHidden>false</a11yHidden>
+            <a11yHint></a11yHint>
+            <a11yLabel></a11yLabel>
+            <a11yValue></a11yValue>
+        </a11yConfig>
     </children>
     <children xsi:type="kMenuContainer" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
         <ID></ID>
