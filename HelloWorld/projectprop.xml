@@ -179,9 +179,8 @@
     <attributes name="WRITE_EXTERNAL_STORAGE" value="false"/>
     <attributes name="tcbb440basefontsize" value="15"/>
     <attributes name="win8descriptionkey" value="Sample Test Application"/>
-    <attributes name="extendTop" value="false"/>
     <attributes name="REORDER_TASKS" value="false"/>
-    <attributes name="iphonebundleidentifierkey" value="com.kony.HelloWorld"/>
+    <attributes name="iphonebundleidentifierkey" value="com.kone.HelloWorld"/>
     <attributes name="WP8_ID_CAP_NETWORKING" value="true"/>
     <attributes name="ID_CAP_SENSORS" value="true"/>
     <attributes name="bb10orientationmode" value="Default"/>
@@ -212,7 +211,7 @@
     <attributes name="tcphoneformatindicator" value="false"/>
     <attributes name="Location" value="true"/>
     <attributes name="ACCESS_SURFACE_FLINGER" value="false"/>
-    <attributes name="currentgaversion" value="5.6.18.QA_v201406021929_r2"/>
+    <attributes name="currentgaversion" value="5.5.53.QA_v201406101309_r2"/>
     <attributes name="mwhttpsportkey" value=""/>
     <attributes name="pathkey" value=""/>
     <attributes name="vendornamekey" value="KonyLabs"/>
@@ -245,7 +244,6 @@
     <attributes name="apploadeventkey" value="None"/>
     <attributes name="CALL_PHONE" value="false"/>
     <attributes name="INSTALL_PACKAGES" value="false"/>
-    <attributes name="usegoogleplaylocationservices" value="false"/>
     <attributes name="tcbb320basefontsize" value="15"/>
     <attributes name="wp8cycle1key" value=""/>
     <attributes name="desktopwebtitle" value=""/>
@@ -292,7 +290,6 @@
     <attributes name="andmaxsdkkey" value="None"/>
     <attributes name="wp8iconcountnotificationkey" value="false"/>
     <attributes name="READ_SYNC_SETTINGS" value="false"/>
-    <attributes name="statusBarStyle" value="STATUS_BAR_STYLE_DEFAULT"/>
     <attributes name="WRITE_HISTORY_BOOKMARKS" value="false"/>
     <attributes name="INTERNET" value="true"/>
     <attributes name="enablepushnotifications" value="false"/>
@@ -328,7 +325,7 @@
     <attributes name="androidInstallLocnPref" value="false"/>
     <attributes name="tcpalm240basefontsize" value="10"/>
     <attributes name="CHANGE_WIFI_MULTICAST_STATE" value="false"/>
-    <attributes name="cloud_url" value="http://127.0.0.1:8080"/>
+    <attributes name="cloud_url" value="https://sync560.qa-konycloud.com"/>
     <attributes name="certs_key_store_pwd" value="kds/0eUc+i3BqFqSkpCk4g=="/>
     <attributes name="CALL_PRIVILEGED" value="false"/>
     <attributes name="SUBSCRIBED_FEEDS_READ" value="false"/>
@@ -336,10 +333,9 @@
     <attributes name="antialiaseddrawing" value="false"/>
     <attributes name="READ_PHONE_STATE" value="true"/>
     <attributes name="sessionmanager" value="Kony Session Manager"/>
-    <attributes name="extendBottom" value="false"/>
     <attributes name="appversioncode" value="1"/>
     <attributes name="RECEIVE_WAP_PUSH" value="false"/>
-    <attributes name="cloud_selected_ipaddress_list" value="http://127.0.0.1:8080,http://10.10.12.29:8080"/>
+    <attributes name="cloud_selected_ipaddress_list" value="http://10.37.129.2:8080,http://10.211.55.2:8080,http://10.10.27.42:8080,http://127.0.0.1:8080"/>
     <attributes name="customgcmbroadcastreceiver" value=""/>
     <attributes name="WP8_ID_CAP_REMOVABLE_STORAGE" value="true"/>
     <attributes name="MODIFY_PHONE_STATE" value="false"/>
@@ -404,7 +400,7 @@
     <attributes name="tcandroid480basefontsize" value="16"/>
     <attributes name="BROADCAST_SMS" value="false"/>
     <attributes name="tcandroid320basefontsize" value="12"/>
-    <attributes name="cloud_env_name" value=""/>
+    <attributes name="cloud_env_name" value="pramod.kalluri@kony.com-sync560"/>
     <attributes name="ID_REQ_REARCAMERA" value="false"/>
     <attributes name="tcandroid360basefontsize" value="13"/>
     <attributes name="win8displaynamekey" value="HelloWorld"/>
