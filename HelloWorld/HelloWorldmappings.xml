@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<application name="HelloWorld" id="HelloWorld">
-    <container type="form" id="frmHome" displayname="Form"/>
-    <container type="form" id="frmHome" displayname="Form"/>
-    <container type="form" id="frmHome" displayname="Form"/>
+<application id="HelloWorld" name="HelloWorld">
+    <container displayname="Form" id="frmHome" type="form"/>
+    <container displayname="Form" id="frmHome" type="form"/>
+    <container displayname="Form" id="frmHome" type="form"/>
     <globalsequences/>
     <skins/>
 </application>
