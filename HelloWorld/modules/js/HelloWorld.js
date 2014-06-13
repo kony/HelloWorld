@@ -1,8 +1,8 @@
 /**
 ****************************************************************
-*	Name    : searchByHelpCategory
-*	Author  : Kony Solutions
-*	Purpose : Displays the popup in all forms
+*	Name    : showPopup
+*	Author  : Kony Inc.
+*	Purpose : Displays the popup
 ****************************************************************
 */
 function showPopup()
