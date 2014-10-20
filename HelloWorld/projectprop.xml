@@ -419,5 +419,6 @@
     <attributes name="APPLICATION_THEME" value="default"/>
     <attributes name="camerasettings" value=""/>
     <attributes name="pathprefixkey" value=""/>
+    <attributes name="windowskioskguid" value="6ba1d407-701a-4cd0-95d3-2e0fa33f10bd"/>
     <attributes name="defaultlocalekey" value=""/>
 </properties>
