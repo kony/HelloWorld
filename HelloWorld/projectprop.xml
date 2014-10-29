@@ -331,7 +331,7 @@
     <attributes name="genericexceptionalert" value="false"/>
     <attributes name="tcbjs320basefontsize" value="10"/>
     <attributes name="APPLICATION_THEME" value="default"/>
-    <attributes name="wp8packagepublisheridkey" value=""/>
+    <attributes name="wp8packagepublisheridkey" value="f0eb7530-cd21-4ee1-a6e8-653f7f9bcf5c"/>
     <attributes name="Music_Library" value="true"/>
     <attributes name="Location" value="true"/>
     <attributes name="DIAGNOSTIC" value="false"/>
