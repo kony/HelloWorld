@@ -1,6 +1,109 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <kPage>
     <ID></ID>
+    <flexConstraints>
+        <bottom></bottom>
+        <centerX></centerX>
+        <centerY></centerY>
+        <contentOffsetX></contentOffsetX>
+        <contentOffsetY></contentOffsetY>
+        <contentSizeHeight></contentSizeHeight>
+        <contentSizeWidth></contentSizeWidth>
+        <height></height>
+        <left></left>
+        <maxHeight></maxHeight>
+        <maxWidth></maxWidth>
+        <minHeight></minHeight>
+        <minWidth></minWidth>
+        <preferredHeight></preferredHeight>
+        <preferredWidth></preferredWidth>
+        <propertyVsUnit>
+            <entry>
+                <key>Top</key>
+                <value>dp</value>
+            </entry>
+            <entry>
+                <key>Left</key>
+                <value>dp</value>
+            </entry>
+            <entry>
+                <key>Bottom</key>
+                <value>default</value>
+            </entry>
+            <entry>
+                <key>Right</key>
+                <value>default</value>
+            </entry>
+            <entry>
+                <key>Width</key>
+                <value>dp</value>
+            </entry>
+            <entry>
+                <key>Height</key>
+                <value>dp</value>
+            </entry>
+            <entry>
+                <key>Center X</key>
+                <value>default</value>
+            </entry>
+            <entry>
+                <key>Center Y</key>
+                <value>default</value>
+            </entry>
+            <entry>
+                <key>Z Index</key>
+                <value>default</value>
+            </entry>
+            <entry>
+                <key>Min Width</key>
+                <value>default</value>
+            </entry>
+            <entry>
+                <key>Min Height</key>
+                <value>default</value>
+            </entry>
+            <entry>
+                <key>Max Width</key>
+                <value>default</value>
+            </entry>
+            <entry>
+                <key>Max Height</key>
+                <value>default</value>
+            </entry>
+            <entry>
+                <key>content OffsetX</key>
+                <value>dp</value>
+            </entry>
+            <entry>
+                <key>content OffsetY</key>
+                <value>dp</value>
+            </entry>
+            <entry>
+                <key>contentSizeHeight</key>
+                <value>dp</value>
+            </entry>
+            <entry>
+                <key>contentSizeWidth</key>
+                <value>dp</value>
+            </entry>
+            <entry>
+                <key>rowHeight</key>
+                <value>dp</value>
+            </entry>
+            <entry>
+                <key>rowWidth</key>
+                <value>%</value>
+            </entry>
+        </propertyVsUnit>
+        <right></right>
+        <rowHeight>40</rowHeight>
+        <rowWidth>100</rowWidth>
+        <top></top>
+        <width></width>
+        <xlocation>0</xlocation>
+        <ylocation>0</ylocation>
+        <zOrder>1</zOrder>
+    </flexConstraints>
     <layoutType>0</layoutType>
     <widgetID>p2kwiet103994549620072</widgetID>
     <createdGAVersion>5.0.0</createdGAVersion>
@@ -44,6 +147,109 @@
             <verticalAlignment>0</verticalAlignment>
             <verticalFill>1</verticalFill>
         </gridMetaData>
+        <flexConstraints>
+            <bottom></bottom>
+            <centerX></centerX>
+            <centerY></centerY>
+            <contentOffsetX></contentOffsetX>
+            <contentOffsetY></contentOffsetY>
+            <contentSizeHeight></contentSizeHeight>
+            <contentSizeWidth></contentSizeWidth>
+            <height></height>
+            <left></left>
+            <maxHeight></maxHeight>
+            <maxWidth></maxWidth>
+            <minHeight></minHeight>
+            <minWidth></minWidth>
+            <preferredHeight></preferredHeight>
+            <preferredWidth></preferredWidth>
+            <propertyVsUnit>
+                <entry>
+                    <key>Top</key>
+                    <value>dp</value>
+                </entry>
+                <entry>
+                    <key>Left</key>
+                    <value>dp</value>
+                </entry>
+                <entry>
+                    <key>Bottom</key>
+                    <value>default</value>
+                </entry>
+                <entry>
+                    <key>Right</key>
+                    <value>default</value>
+                </entry>
+                <entry>
+                    <key>Width</key>
+                    <value>dp</value>
+                </entry>
+                <entry>
+                    <key>Height</key>
+                    <value>dp</value>
+                </entry>
+                <entry>
+                    <key>Center X</key>
+                    <value>default</value>
+                </entry>
+                <entry>
+                    <key>Center Y</key>
+                    <value>default</value>
+                </entry>
+                <entry>
+                    <key>Z Index</key>
+                    <value>default</value>
+                </entry>
+                <entry>
+                    <key>Min Width</key>
+                    <value>default</value>
+                </entry>
+                <entry>
+                    <key>Min Height</key>
+                    <value>default</value>
+                </entry>
+                <entry>
+                    <key>Max Width</key>
+                    <value>default</value>
+                </entry>
+                <entry>
+                    <key>Max Height</key>
+                    <value>default</value>
+                </entry>
+                <entry>
+                    <key>content OffsetX</key>
+                    <value>dp</value>
+                </entry>
+                <entry>
+                    <key>content OffsetY</key>
+                    <value>dp</value>
+                </entry>
+                <entry>
+                    <key>contentSizeHeight</key>
+                    <value>dp</value>
+                </entry>
+                <entry>
+                    <key>contentSizeWidth</key>
+                    <value>dp</value>
+                </entry>
+                <entry>
+                    <key>rowHeight</key>
+                    <value>dp</value>
+                </entry>
+                <entry>
+                    <key>rowWidth</key>
+                    <value>%</value>
+                </entry>
+            </propertyVsUnit>
+            <right></right>
+            <rowHeight>40</rowHeight>
+            <rowWidth>100</rowWidth>
+            <top></top>
+            <width></width>
+            <xlocation>0</xlocation>
+            <ylocation>0</ylocation>
+            <zOrder>1</zOrder>
+        </flexConstraints>
         <layoutType>0</layoutType>
         <widgetID>p2kwiet103994549620073</widgetID>
         <createdGAVersion>5.0.0</createdGAVersion>
@@ -89,6 +295,7 @@
             <rc_winmobile>true</rc_winmobile>
             <rc_winmobile6x>true</rc_winmobile6x>
             <rc_winphone8>true</rc_winphone8>
+            <rc_winphone81s>true</rc_winphone81s>
             <tabspa_ipad>true</tabspa_ipad>
             <tabspa_windows>true</tabspa_windows>
             <tabspaspa_android>true</tabspaspa_android>
@@ -132,6 +339,7 @@
             <rc_winmobile>true</rc_winmobile>
             <rc_winmobile6x>true</rc_winmobile6x>
             <rc_winphone8>true</rc_winphone8>
+            <rc_winphone81s>true</rc_winphone81s>
             <tabspa_ipad>true</tabspa_ipad>
             <tabspa_windows>true</tabspa_windows>
             <tabspaspa_android>true</tabspaspa_android>
@@ -782,6 +990,109 @@
                 <verticalAlignment>0</verticalAlignment>
                 <verticalFill>1</verticalFill>
             </gridMetaData>
+            <flexConstraints>
+                <bottom></bottom>
+                <centerX></centerX>
+                <centerY></centerY>
+                <contentOffsetX></contentOffsetX>
+                <contentOffsetY></contentOffsetY>
+                <contentSizeHeight></contentSizeHeight>
+                <contentSizeWidth></contentSizeWidth>
+                <height></height>
+                <left></left>
+                <maxHeight></maxHeight>
+                <maxWidth></maxWidth>
+                <minHeight></minHeight>
+                <minWidth></minWidth>
+                <preferredHeight></preferredHeight>
+                <preferredWidth></preferredWidth>
+                <propertyVsUnit>
+                    <entry>
+                        <key>Top</key>
+                        <value>dp</value>
+                    </entry>
+                    <entry>
+                        <key>Left</key>
+                        <value>dp</value>
+                    </entry>
+                    <entry>
+                        <key>Bottom</key>
+                        <value>default</value>
+                    </entry>
+                    <entry>
+                        <key>Right</key>
+                        <value>default</value>
+                    </entry>
+                    <entry>
+                        <key>Width</key>
+                        <value>dp</value>
+                    </entry>
+                    <entry>
+                        <key>Height</key>
+                        <value>dp</value>
+                    </entry>
+                    <entry>
+                        <key>Center X</key>
+                        <value>default</value>
+                    </entry>
+                    <entry>
+                        <key>Center Y</key>
+                        <value>default</value>
+                    </entry>
+                    <entry>
+                        <key>Z Index</key>
+                        <value>default</value>
+                    </entry>
+                    <entry>
+                        <key>Min Width</key>
+                        <value>default</value>
+                    </entry>
+                    <entry>
+                        <key>Min Height</key>
+                        <value>default</value>
+                    </entry>
+                    <entry>
+                        <key>Max Width</key>
+                        <value>default</value>
+                    </entry>
+                    <entry>
+                        <key>Max Height</key>
+                        <value>default</value>
+                    </entry>
+                    <entry>
+                        <key>content OffsetX</key>
+                        <value>dp</value>
+                    </entry>
+                    <entry>
+                        <key>content OffsetY</key>
+                        <value>dp</value>
+                    </entry>
+                    <entry>
+                        <key>contentSizeHeight</key>
+                        <value>dp</value>
+                    </entry>
+                    <entry>
+                        <key>contentSizeWidth</key>
+                        <value>dp</value>
+                    </entry>
+                    <entry>
+                        <key>rowHeight</key>
+                        <value>dp</value>
+                    </entry>
+                    <entry>
+                        <key>rowWidth</key>
+                        <value>%</value>
+                    </entry>
+                </propertyVsUnit>
+                <right></right>
+                <rowHeight>40</rowHeight>
+                <rowWidth>100</rowWidth>
+                <top></top>
+                <width></width>
+                <xlocation>0</xlocation>
+                <ylocation>0</ylocation>
+                <zOrder>1</zOrder>
+            </flexConstraints>
             <layoutType>0</layoutType>
             <widgetID>p2kwiet103976675021245</widgetID>
             <createdGAVersion>5.0.0</createdGAVersion>
@@ -822,6 +1133,7 @@
                 <rc_winmobile>true</rc_winmobile>
                 <rc_winmobile6x>true</rc_winmobile6x>
                 <rc_winphone8>true</rc_winphone8>
+                <rc_winphone81s>true</rc_winphone81s>
                 <tabspa_ipad>true</tabspa_ipad>
                 <tabspa_windows>true</tabspa_windows>
                 <tabspaspa_android>true</tabspaspa_android>
@@ -1433,6 +1745,109 @@
                     <verticalAlignment>0</verticalAlignment>
                     <verticalFill>1</verticalFill>
                 </gridMetaData>
+                <flexConstraints>
+                    <bottom></bottom>
+                    <centerX></centerX>
+                    <centerY></centerY>
+                    <contentOffsetX></contentOffsetX>
+                    <contentOffsetY></contentOffsetY>
+                    <contentSizeHeight></contentSizeHeight>
+                    <contentSizeWidth></contentSizeWidth>
+                    <height></height>
+                    <left></left>
+                    <maxHeight></maxHeight>
+                    <maxWidth></maxWidth>
+                    <minHeight></minHeight>
+                    <minWidth></minWidth>
+                    <preferredHeight></preferredHeight>
+                    <preferredWidth></preferredWidth>
+                    <propertyVsUnit>
+                        <entry>
+                            <key>Top</key>
+                            <value>dp</value>
+                        </entry>
+                        <entry>
+                            <key>Left</key>
+                            <value>dp</value>
+                        </entry>
+                        <entry>
+                            <key>Bottom</key>
+                            <value>default</value>
+                        </entry>
+                        <entry>
+                            <key>Right</key>
+                            <value>default</value>
+                        </entry>
+                        <entry>
+                            <key>Width</key>
+                            <value>dp</value>
+                        </entry>
+                        <entry>
+                            <key>Height</key>
+                            <value>dp</value>
+                        </entry>
+                        <entry>
+                            <key>Center X</key>
+                            <value>default</value>
+                        </entry>
+                        <entry>
+                            <key>Center Y</key>
+                            <value>default</value>
+                        </entry>
+                        <entry>
+                            <key>Z Index</key>
+                            <value>default</value>
+                        </entry>
+                        <entry>
+                            <key>Min Width</key>
+                            <value>default</value>
+                        </entry>
+                        <entry>
+                            <key>Min Height</key>
+                            <value>default</value>
+                        </entry>
+                        <entry>
+                            <key>Max Width</key>
+                            <value>default</value>
+                        </entry>
+                        <entry>
+                            <key>Max Height</key>
+                            <value>default</value>
+                        </entry>
+                        <entry>
+                            <key>content OffsetX</key>
+                            <value>dp</value>
+                        </entry>
+                        <entry>
+                            <key>content OffsetY</key>
+                            <value>dp</value>
+                        </entry>
+                        <entry>
+                            <key>contentSizeHeight</key>
+                            <value>dp</value>
+                        </entry>
+                        <entry>
+                            <key>contentSizeWidth</key>
+                            <value>dp</value>
+                        </entry>
+                        <entry>
+                            <key>rowHeight</key>
+                            <value>dp</value>
+                        </entry>
+                        <entry>
+                            <key>rowWidth</key>
+                            <value>%</value>
+                        </entry>
+                    </propertyVsUnit>
+                    <right></right>
+                    <rowHeight>40</rowHeight>
+                    <rowWidth>100</rowWidth>
+                    <top></top>
+                    <width></width>
+                    <xlocation>0</xlocation>
+                    <ylocation>0</ylocation>
+                    <zOrder>1</zOrder>
+                </flexConstraints>
                 <widgetID>p2kwiet121034365020102</widgetID>
                 <location>
                     <x>1</x>
@@ -1474,6 +1889,7 @@
                     <rc_winmobile>true</rc_winmobile>
                     <rc_winmobile6x>true</rc_winmobile6x>
                     <rc_winphone8>true</rc_winphone8>
+                    <rc_winphone81s>true</rc_winphone81s>
                     <tabspa_ipad>true</tabspa_ipad>
                     <tabspa_windows>true</tabspa_windows>
                     <tabspaspa_android>true</tabspaspa_android>
@@ -2119,6 +2535,73 @@
                 <bb10_skin>Skin Defaults</bb10_skin>
                 <containerWeight>0</containerWeight>
                 <projectState>0</projectState>
+                <a11yConfig>
+                    <a11yHidden>false</a11yHidden>
+                    <a11yHint></a11yHint>
+                    <a11yLabel></a11yLabel>
+                    <a11yValue></a11yValue>
+                </a11yConfig>
+                <event_onTap>
+                    <evtSequence>
+                        <enabled>true</enabled>
+                        <seqname></seqname>
+                    </evtSequence>
+                </event_onTap>
+                <event_onDoubleTap>
+                    <evtSequence>
+                        <enabled>true</enabled>
+                        <seqname></seqname>
+                    </evtSequence>
+                </event_onDoubleTap>
+                <event_onLongPress>
+                    <evtSequence>
+                        <enabled>true</enabled>
+                        <seqname></seqname>
+                    </evtSequence>
+                </event_onLongPress>
+                <event_onPinch>
+                    <evtSequence>
+                        <enabled>true</enabled>
+                        <seqname></seqname>
+                    </evtSequence>
+                </event_onPinch>
+                <event_onRotate>
+                    <evtSequence>
+                        <enabled>true</enabled>
+                        <seqname></seqname>
+                    </evtSequence>
+                </event_onRotate>
+                <event_onSwipe>
+                    <evtSequence>
+                        <enabled>true</enabled>
+                        <seqname></seqname>
+                    </evtSequence>
+                </event_onSwipe>
+                <event_onTouchStart>
+                    <evtSequence>
+                        <enabled>true</enabled>
+                        <seqname></seqname>
+                    </evtSequence>
+                </event_onTouchStart>
+                <event_onTouchMove>
+                    <evtSequence>
+                        <enabled>true</enabled>
+                        <seqname></seqname>
+                    </evtSequence>
+                </event_onTouchMove>
+                <event_onTouchEnd>
+                    <evtSequence>
+                        <enabled>true</enabled>
+                        <seqname></seqname>
+                    </evtSequence>
+                </event_onTouchEnd>
+                <event_onTouchCancel>
+                    <evtSequence>
+                        <enabled>true</enabled>
+                        <seqname></seqname>
+                    </evtSequence>
+                </event_onTouchCancel>
+                <winphone8_enableCache>false</winphone8_enableCache>
             </children>
             <general_contextMenu>None</general_contextMenu>
             <desktopweb_onRightClick>
@@ -2130,6 +2613,79 @@
             <winphone8_position>0</winphone8_position>
             <containerWeight>0</containerWeight>
             <projectState>0</projectState>
+            <a11yConfig>
+                <a11yHidden>false</a11yHidden>
+                <a11yHint></a11yHint>
+                <a11yLabel></a11yLabel>
+                <a11yValue></a11yValue>
+            </a11yConfig>
+            <onHover>
+                <evtSequence>
+                    <enabled>true</enabled>
+                    <seqname></seqname>
+                </evtSequence>
+            </onHover>
+            <event_onTap>
+                <evtSequence>
+                    <enabled>true</enabled>
+                    <seqname></seqname>
+                </evtSequence>
+            </event_onTap>
+            <event_onDoubleTap>
+                <evtSequence>
+                    <enabled>true</enabled>
+                    <seqname></seqname>
+                </evtSequence>
+            </event_onDoubleTap>
+            <event_onLongPress>
+                <evtSequence>
+                    <enabled>true</enabled>
+                    <seqname></seqname>
+                </evtSequence>
+            </event_onLongPress>
+            <event_onPinch>
+                <evtSequence>
+                    <enabled>true</enabled>
+                    <seqname></seqname>
+                </evtSequence>
+            </event_onPinch>
+            <event_onRotate>
+                <evtSequence>
+                    <enabled>true</enabled>
+                    <seqname></seqname>
+                </evtSequence>
+            </event_onRotate>
+            <event_onSwipe>
+                <evtSequence>
+                    <enabled>true</enabled>
+                    <seqname></seqname>
+                </evtSequence>
+            </event_onSwipe>
+            <event_onTouchStart>
+                <evtSequence>
+                    <enabled>true</enabled>
+                    <seqname></seqname>
+                </evtSequence>
+            </event_onTouchStart>
+            <event_onTouchMove>
+                <evtSequence>
+                    <enabled>true</enabled>
+                    <seqname></seqname>
+                </evtSequence>
+            </event_onTouchMove>
+            <event_onTouchEnd>
+                <evtSequence>
+                    <enabled>true</enabled>
+                    <seqname></seqname>
+                </evtSequence>
+            </event_onTouchEnd>
+            <event_onTouchCancel>
+                <evtSequence>
+                    <enabled>true</enabled>
+                    <seqname></seqname>
+                </evtSequence>
+            </event_onTouchCancel>
+            <winphone8_enableCache>false</winphone8_enableCache>
         </children>
         <children xsi:type="kButton">
             <ID>btnClickMe</ID>
@@ -2144,6 +2700,109 @@
                 <verticalAlignment>0</verticalAlignment>
                 <verticalFill>1</verticalFill>
             </gridMetaData>
+            <flexConstraints>
+                <bottom></bottom>
+                <centerX></centerX>
+                <centerY></centerY>
+                <contentOffsetX></contentOffsetX>
+                <contentOffsetY></contentOffsetY>
+                <contentSizeHeight></contentSizeHeight>
+                <contentSizeWidth></contentSizeWidth>
+                <height></height>
+                <left></left>
+                <maxHeight></maxHeight>
+                <maxWidth></maxWidth>
+                <minHeight></minHeight>
+                <minWidth></minWidth>
+                <preferredHeight></preferredHeight>
+                <preferredWidth></preferredWidth>
+                <propertyVsUnit>
+                    <entry>
+                        <key>Top</key>
+                        <value>dp</value>
+                    </entry>
+                    <entry>
+                        <key>Left</key>
+                        <value>dp</value>
+                    </entry>
+                    <entry>
+                        <key>Bottom</key>
+                        <value>default</value>
+                    </entry>
+                    <entry>
+                        <key>Right</key>
+                        <value>default</value>
+                    </entry>
+                    <entry>
+                        <key>Width</key>
+                        <value>dp</value>
+                    </entry>
+                    <entry>
+                        <key>Height</key>
+                        <value>dp</value>
+                    </entry>
+                    <entry>
+                        <key>Center X</key>
+                        <value>default</value>
+                    </entry>
+                    <entry>
+                        <key>Center Y</key>
+                        <value>default</value>
+                    </entry>
+                    <entry>
+                        <key>Z Index</key>
+                        <value>default</value>
+                    </entry>
+                    <entry>
+                        <key>Min Width</key>
+                        <value>default</value>
+                    </entry>
+                    <entry>
+                        <key>Min Height</key>
+                        <value>default</value>
+                    </entry>
+                    <entry>
+                        <key>Max Width</key>
+                        <value>default</value>
+                    </entry>
+                    <entry>
+                        <key>Max Height</key>
+                        <value>default</value>
+                    </entry>
+                    <entry>
+                        <key>content OffsetX</key>
+                        <value>dp</value>
+                    </entry>
+                    <entry>
+                        <key>content OffsetY</key>
+                        <value>dp</value>
+                    </entry>
+                    <entry>
+                        <key>contentSizeHeight</key>
+                        <value>dp</value>
+                    </entry>
+                    <entry>
+                        <key>contentSizeWidth</key>
+                        <value>dp</value>
+                    </entry>
+                    <entry>
+                        <key>rowHeight</key>
+                        <value>dp</value>
+                    </entry>
+                    <entry>
+                        <key>rowWidth</key>
+                        <value>%</value>
+                    </entry>
+                </propertyVsUnit>
+                <right></right>
+                <rowHeight>40</rowHeight>
+                <rowWidth>100</rowWidth>
+                <top></top>
+                <width></width>
+                <xlocation>0</xlocation>
+                <ylocation>0</ylocation>
+                <zOrder>1</zOrder>
+            </flexConstraints>
             <widgetID>p2kwiet103976675021252</widgetID>
             <createdGAVersion>5.0.0</createdGAVersion>
             <location>
@@ -2183,6 +2842,7 @@
                 <rc_winmobile>true</rc_winmobile>
                 <rc_winmobile6x>true</rc_winmobile6x>
                 <rc_winphone8>true</rc_winphone8>
+                <rc_winphone81s>true</rc_winphone81s>
                 <tabspa_ipad>true</tabspa_ipad>
                 <tabspa_windows>true</tabspa_windows>
                 <tabspaspa_android>true</tabspaspa_android>
@@ -2839,6 +3499,73 @@
             <bb10displaytext>true</bb10displaytext>
             <containerWeight>0</containerWeight>
             <projectState>0</projectState>
+            <a11yConfig>
+                <a11yHidden>false</a11yHidden>
+                <a11yHint></a11yHint>
+                <a11yLabel></a11yLabel>
+                <a11yValue></a11yValue>
+            </a11yConfig>
+            <event_onTap>
+                <evtSequence>
+                    <enabled>true</enabled>
+                    <seqname></seqname>
+                </evtSequence>
+            </event_onTap>
+            <event_onDoubleTap>
+                <evtSequence>
+                    <enabled>true</enabled>
+                    <seqname></seqname>
+                </evtSequence>
+            </event_onDoubleTap>
+            <event_onLongPress>
+                <evtSequence>
+                    <enabled>true</enabled>
+                    <seqname></seqname>
+                </evtSequence>
+            </event_onLongPress>
+            <event_onPinch>
+                <evtSequence>
+                    <enabled>true</enabled>
+                    <seqname></seqname>
+                </evtSequence>
+            </event_onPinch>
+            <event_onRotate>
+                <evtSequence>
+                    <enabled>true</enabled>
+                    <seqname></seqname>
+                </evtSequence>
+            </event_onRotate>
+            <event_onSwipe>
+                <evtSequence>
+                    <enabled>true</enabled>
+                    <seqname></seqname>
+                </evtSequence>
+            </event_onSwipe>
+            <event_onTouchStart>
+                <evtSequence>
+                    <enabled>true</enabled>
+                    <seqname></seqname>
+                </evtSequence>
+            </event_onTouchStart>
+            <event_onTouchMove>
+                <evtSequence>
+                    <enabled>true</enabled>
+                    <seqname></seqname>
+                </evtSequence>
+            </event_onTouchMove>
+            <event_onTouchEnd>
+                <evtSequence>
+                    <enabled>true</enabled>
+                    <seqname></seqname>
+                </evtSequence>
+            </event_onTouchEnd>
+            <event_onTouchCancel>
+                <evtSequence>
+                    <enabled>true</enabled>
+                    <seqname></seqname>
+                </evtSequence>
+            </event_onTouchCancel>
+            <winphone8_enableCache>false</winphone8_enableCache>
         </children>
         <children xsi:type="khBox">
             <ID>hbxTitle</ID>
@@ -2853,6 +3580,109 @@
                 <verticalAlignment>0</verticalAlignment>
                 <verticalFill>1</verticalFill>
             </gridMetaData>
+            <flexConstraints>
+                <bottom></bottom>
+                <centerX></centerX>
+                <centerY></centerY>
+                <contentOffsetX></contentOffsetX>
+                <contentOffsetY></contentOffsetY>
+                <contentSizeHeight></contentSizeHeight>
+                <contentSizeWidth></contentSizeWidth>
+                <height></height>
+                <left></left>
+                <maxHeight></maxHeight>
+                <maxWidth></maxWidth>
+                <minHeight></minHeight>
+                <minWidth></minWidth>
+                <preferredHeight></preferredHeight>
+                <preferredWidth></preferredWidth>
+                <propertyVsUnit>
+                    <entry>
+                        <key>Top</key>
+                        <value>dp</value>
+                    </entry>
+                    <entry>
+                        <key>Left</key>
+                        <value>dp</value>
+                    </entry>
+                    <entry>
+                        <key>Bottom</key>
+                        <value>default</value>
+                    </entry>
+                    <entry>
+                        <key>Right</key>
+                        <value>default</value>
+                    </entry>
+                    <entry>
+                        <key>Width</key>
+                        <value>dp</value>
+                    </entry>
+                    <entry>
+                        <key>Height</key>
+                        <value>dp</value>
+                    </entry>
+                    <entry>
+                        <key>Center X</key>
+                        <value>default</value>
+                    </entry>
+                    <entry>
+                        <key>Center Y</key>
+                        <value>default</value>
+                    </entry>
+                    <entry>
+                        <key>Z Index</key>
+                        <value>default</value>
+                    </entry>
+                    <entry>
+                        <key>Min Width</key>
+                        <value>default</value>
+                    </entry>
+                    <entry>
+                        <key>Min Height</key>
+                        <value>default</value>
+                    </entry>
+                    <entry>
+                        <key>Max Width</key>
+                        <value>default</value>
+                    </entry>
+                    <entry>
+                        <key>Max Height</key>
+                        <value>default</value>
+                    </entry>
+                    <entry>
+                        <key>content OffsetX</key>
+                        <value>dp</value>
+                    </entry>
+                    <entry>
+                        <key>content OffsetY</key>
+                        <value>dp</value>
+                    </entry>
+                    <entry>
+                        <key>contentSizeHeight</key>
+                        <value>dp</value>
+                    </entry>
+                    <entry>
+                        <key>contentSizeWidth</key>
+                        <value>dp</value>
+                    </entry>
+                    <entry>
+                        <key>rowHeight</key>
+                        <value>dp</value>
+                    </entry>
+                    <entry>
+                        <key>rowWidth</key>
+                        <value>%</value>
+                    </entry>
+                </propertyVsUnit>
+                <right></right>
+                <rowHeight>40</rowHeight>
+                <rowWidth>100</rowWidth>
+                <top></top>
+                <width></width>
+                <xlocation>0</xlocation>
+                <ylocation>0</ylocation>
+                <zOrder>1</zOrder>
+            </flexConstraints>
             <layoutType>0</layoutType>
             <widgetID>p2kwiet1041886869997</widgetID>
             <createdGAVersion>5.0.0</createdGAVersion>
@@ -2893,6 +3723,7 @@
                 <rc_winmobile>true</rc_winmobile>
                 <rc_winmobile6x>true</rc_winmobile6x>
                 <rc_winphone8>true</rc_winphone8>
+                <rc_winphone81s>true</rc_winphone81s>
                 <tabspa_ipad>true</tabspa_ipad>
                 <tabspa_windows>true</tabspa_windows>
                 <tabspaspa_android>true</tabspaspa_android>
@@ -3504,6 +4335,109 @@
                     <verticalAlignment>0</verticalAlignment>
                     <verticalFill>1</verticalFill>
                 </gridMetaData>
+                <flexConstraints>
+                    <bottom></bottom>
+                    <centerX></centerX>
+                    <centerY></centerY>
+                    <contentOffsetX></contentOffsetX>
+                    <contentOffsetY></contentOffsetY>
+                    <contentSizeHeight></contentSizeHeight>
+                    <contentSizeWidth></contentSizeWidth>
+                    <height></height>
+                    <left></left>
+                    <maxHeight></maxHeight>
+                    <maxWidth></maxWidth>
+                    <minHeight></minHeight>
+                    <minWidth></minWidth>
+                    <preferredHeight></preferredHeight>
+                    <preferredWidth></preferredWidth>
+                    <propertyVsUnit>
+                        <entry>
+                            <key>Top</key>
+                            <value>dp</value>
+                        </entry>
+                        <entry>
+                            <key>Left</key>
+                            <value>dp</value>
+                        </entry>
+                        <entry>
+                            <key>Bottom</key>
+                            <value>default</value>
+                        </entry>
+                        <entry>
+                            <key>Right</key>
+                            <value>default</value>
+                        </entry>
+                        <entry>
+                            <key>Width</key>
+                            <value>dp</value>
+                        </entry>
+                        <entry>
+                            <key>Height</key>
+                            <value>dp</value>
+                        </entry>
+                        <entry>
+                            <key>Center X</key>
+                            <value>default</value>
+                        </entry>
+                        <entry>
+                            <key>Center Y</key>
+                            <value>default</value>
+                        </entry>
+                        <entry>
+                            <key>Z Index</key>
+                            <value>default</value>
+                        </entry>
+                        <entry>
+                            <key>Min Width</key>
+                            <value>default</value>
+                        </entry>
+                        <entry>
+                            <key>Min Height</key>
+                            <value>default</value>
+                        </entry>
+                        <entry>
+                            <key>Max Width</key>
+                            <value>default</value>
+                        </entry>
+                        <entry>
+                            <key>Max Height</key>
+                            <value>default</value>
+                        </entry>
+                        <entry>
+                            <key>content OffsetX</key>
+                            <value>dp</value>
+                        </entry>
+                        <entry>
+                            <key>content OffsetY</key>
+                            <value>dp</value>
+                        </entry>
+                        <entry>
+                            <key>contentSizeHeight</key>
+                            <value>dp</value>
+                        </entry>
+                        <entry>
+                            <key>contentSizeWidth</key>
+                            <value>dp</value>
+                        </entry>
+                        <entry>
+                            <key>rowHeight</key>
+                            <value>dp</value>
+                        </entry>
+                        <entry>
+                            <key>rowWidth</key>
+                            <value>%</value>
+                        </entry>
+                    </propertyVsUnit>
+                    <right></right>
+                    <rowHeight>40</rowHeight>
+                    <rowWidth>100</rowWidth>
+                    <top></top>
+                    <width></width>
+                    <xlocation>0</xlocation>
+                    <ylocation>0</ylocation>
+                    <zOrder>1</zOrder>
+                </flexConstraints>
                 <widgetID>p2kwiet1041886869998</widgetID>
                 <createdGAVersion>5.0.0</createdGAVersion>
                 <location>
@@ -3543,6 +4477,7 @@
                     <rc_winmobile>true</rc_winmobile>
                     <rc_winmobile6x>true</rc_winmobile6x>
                     <rc_winphone8>true</rc_winphone8>
+                    <rc_winphone81s>true</rc_winphone81s>
                     <tabspa_ipad>true</tabspa_ipad>
                     <tabspa_windows>true</tabspa_windows>
                     <tabspaspa_android>true</tabspaspa_android>
@@ -4138,6 +5073,79 @@
                 <bb10_contentalignment>0</bb10_contentalignment>
                 <containerWeight>0</containerWeight>
                 <projectState>0</projectState>
+                <a11yConfig>
+                    <a11yHidden>false</a11yHidden>
+                    <a11yHint></a11yHint>
+                    <a11yLabel></a11yLabel>
+                    <a11yValue></a11yValue>
+                </a11yConfig>
+                <iphone_textcopyable>false</iphone_textcopyable>
+                <ipad_textcopyable>false</ipad_textcopyable>
+                <android_textcopyable>false</android_textcopyable>
+                <spa_textcopyable>false</spa_textcopyable>
+                <iphone_pasteboardType>PASTE_BOARD_TYPE_SYSTEM_LEVEL</iphone_pasteboardType>
+                <ipad_pasteboardType>PASTE_BOARD_TYPE_SYSTEM_LEVEL</ipad_pasteboardType>
+                <event_onTap>
+                    <evtSequence>
+                        <enabled>true</enabled>
+                        <seqname></seqname>
+                    </evtSequence>
+                </event_onTap>
+                <event_onDoubleTap>
+                    <evtSequence>
+                        <enabled>true</enabled>
+                        <seqname></seqname>
+                    </evtSequence>
+                </event_onDoubleTap>
+                <event_onLongPress>
+                    <evtSequence>
+                        <enabled>true</enabled>
+                        <seqname></seqname>
+                    </evtSequence>
+                </event_onLongPress>
+                <event_onPinch>
+                    <evtSequence>
+                        <enabled>true</enabled>
+                        <seqname></seqname>
+                    </evtSequence>
+                </event_onPinch>
+                <event_onRotate>
+                    <evtSequence>
+                        <enabled>true</enabled>
+                        <seqname></seqname>
+                    </evtSequence>
+                </event_onRotate>
+                <event_onSwipe>
+                    <evtSequence>
+                        <enabled>true</enabled>
+                        <seqname></seqname>
+                    </evtSequence>
+                </event_onSwipe>
+                <event_onTouchStart>
+                    <evtSequence>
+                        <enabled>true</enabled>
+                        <seqname></seqname>
+                    </evtSequence>
+                </event_onTouchStart>
+                <event_onTouchMove>
+                    <evtSequence>
+                        <enabled>true</enabled>
+                        <seqname></seqname>
+                    </evtSequence>
+                </event_onTouchMove>
+                <event_onTouchEnd>
+                    <evtSequence>
+                        <enabled>true</enabled>
+                        <seqname></seqname>
+                    </evtSequence>
+                </event_onTouchEnd>
+                <event_onTouchCancel>
+                    <evtSequence>
+                        <enabled>true</enabled>
+                        <seqname></seqname>
+                    </evtSequence>
+                </event_onTouchCancel>
+                <winphone8_enableCache>false</winphone8_enableCache>
             </children>
             <general_contextMenu>None</general_contextMenu>
             <desktopweb_onRightClick>
@@ -4149,6 +5157,79 @@
             <winphone8_position>0</winphone8_position>
             <containerWeight>0</containerWeight>
             <projectState>0</projectState>
+            <a11yConfig>
+                <a11yHidden>false</a11yHidden>
+                <a11yHint></a11yHint>
+                <a11yLabel></a11yLabel>
+                <a11yValue></a11yValue>
+            </a11yConfig>
+            <onHover>
+                <evtSequence>
+                    <enabled>true</enabled>
+                    <seqname></seqname>
+                </evtSequence>
+            </onHover>
+            <event_onTap>
+                <evtSequence>
+                    <enabled>true</enabled>
+                    <seqname></seqname>
+                </evtSequence>
+            </event_onTap>
+            <event_onDoubleTap>
+                <evtSequence>
+                    <enabled>true</enabled>
+                    <seqname></seqname>
+                </evtSequence>
+            </event_onDoubleTap>
+            <event_onLongPress>
+                <evtSequence>
+                    <enabled>true</enabled>
+                    <seqname></seqname>
+                </evtSequence>
+            </event_onLongPress>
+            <event_onPinch>
+                <evtSequence>
+                    <enabled>true</enabled>
+                    <seqname></seqname>
+                </evtSequence>
+            </event_onPinch>
+            <event_onRotate>
+                <evtSequence>
+                    <enabled>true</enabled>
+                    <seqname></seqname>
+                </evtSequence>
+            </event_onRotate>
+            <event_onSwipe>
+                <evtSequence>
+                    <enabled>true</enabled>
+                    <seqname></seqname>
+                </evtSequence>
+            </event_onSwipe>
+            <event_onTouchStart>
+                <evtSequence>
+                    <enabled>true</enabled>
+                    <seqname></seqname>
+                </evtSequence>
+            </event_onTouchStart>
+            <event_onTouchMove>
+                <evtSequence>
+                    <enabled>true</enabled>
+                    <seqname></seqname>
+                </evtSequence>
+            </event_onTouchMove>
+            <event_onTouchEnd>
+                <evtSequence>
+                    <enabled>true</enabled>
+                    <seqname></seqname>
+                </evtSequence>
+            </event_onTouchEnd>
+            <event_onTouchCancel>
+                <evtSequence>
+                    <enabled>true</enabled>
+                    <seqname></seqname>
+                </evtSequence>
+            </event_onTouchCancel>
+            <winphone8_enableCache>false</winphone8_enableCache>
         </children>
         <overrideProperties>KForm.androidtitleBar</overrideProperties>
         <overrideProperties>KForm.bbTitleBar</overrideProperties>
@@ -4203,8 +5284,91 @@
         <bb10_softkeyMode>FORM_ADJUST_RESIZE</bb10_softkeyMode>
         <bb10_showbottomactionbar>true</bb10_showbottomactionbar>
         <bb10_enablepeekgesture>true</bb10_enablepeekgesture>
+        <iphone_extendTop>false</iphone_extendTop>
+        <ipad_extendTop>false</ipad_extendTop>
+        <iphone_extendBottom>false</iphone_extendBottom>
+        <ipad_extendBottom>false</ipad_extendBottom>
+        <iphone_statusBarStyle>STATUS_BAR_STYLE_DEFAULT</iphone_statusBarStyle>
+        <ipad_statusBarStyle>STATUS_BAR_STYLE_DEFAULT</ipad_statusBarStyle>
+        <iphone_configureExtendTop>false</iphone_configureExtendTop>
+        <iphone_configureExtendBottom>false</iphone_configureExtendBottom>
+        <iphone_configureStatusBarStyle>false</iphone_configureStatusBarStyle>
+        <ipad_configureExtendTop>false</ipad_configureExtendTop>
+        <ipad_configureExtendBottom>false</ipad_configureExtendBottom>
+        <ipad_configureStatusBarStyle>false</ipad_configureStatusBarStyle>
         <containerWeight>0</containerWeight>
         <projectState>0</projectState>
+        <a11yConfig>
+            <a11yHidden>false</a11yHidden>
+            <a11yHint></a11yHint>
+            <a11yLabel></a11yLabel>
+            <a11yValue></a11yValue>
+        </a11yConfig>
+        <general_containerHeight></general_containerHeight>
+        <general_containerHeightReference>CONTAINER_HEIGHT_BY_FORM_REFERENCE</general_containerHeightReference>
+        <event_onTap>
+            <evtSequence>
+                <enabled>true</enabled>
+                <seqname></seqname>
+            </evtSequence>
+        </event_onTap>
+        <event_onDoubleTap>
+            <evtSequence>
+                <enabled>true</enabled>
+                <seqname></seqname>
+            </evtSequence>
+        </event_onDoubleTap>
+        <event_onLongPress>
+            <evtSequence>
+                <enabled>true</enabled>
+                <seqname></seqname>
+            </evtSequence>
+        </event_onLongPress>
+        <event_onPinch>
+            <evtSequence>
+                <enabled>true</enabled>
+                <seqname></seqname>
+            </evtSequence>
+        </event_onPinch>
+        <event_onRotate>
+            <evtSequence>
+                <enabled>true</enabled>
+                <seqname></seqname>
+            </evtSequence>
+        </event_onRotate>
+        <event_onSwipe>
+            <evtSequence>
+                <enabled>true</enabled>
+                <seqname></seqname>
+            </evtSequence>
+        </event_onSwipe>
+        <event_onTouchStart>
+            <evtSequence>
+                <enabled>true</enabled>
+                <seqname></seqname>
+            </evtSequence>
+        </event_onTouchStart>
+        <event_onTouchMove>
+            <evtSequence>
+                <enabled>true</enabled>
+                <seqname></seqname>
+            </evtSequence>
+        </event_onTouchMove>
+        <event_onTouchEnd>
+            <evtSequence>
+                <enabled>true</enabled>
+                <seqname></seqname>
+            </evtSequence>
+        </event_onTouchEnd>
+        <event_onTouchCancel>
+            <evtSequence>
+                <enabled>true</enabled>
+                <seqname></seqname>
+            </evtSequence>
+        </event_onTouchCancel>
+        <iphone_statusBarHidden>Apply App Setting</iphone_statusBarHidden>
+        <ipad_statusBarHidden>Apply App Setting</ipad_statusBarHidden>
+        <winphone8_enableCache>false</winphone8_enableCache>
     </children>
     <children xsi:type="kMenuContainer" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
         <ID></ID>
@@ -4219,6 +5383,109 @@
             <verticalAlignment>0</verticalAlignment>
             <verticalFill>1</verticalFill>
         </gridMetaData>
+        <flexConstraints>
+            <bottom></bottom>
+            <centerX></centerX>
+            <centerY></centerY>
+            <contentOffsetX></contentOffsetX>
+            <contentOffsetY></contentOffsetY>
+            <contentSizeHeight></contentSizeHeight>
+            <contentSizeWidth></contentSizeWidth>
+            <height></height>
+            <left></left>
+            <maxHeight></maxHeight>
+            <maxWidth></maxWidth>
+            <minHeight></minHeight>
+            <minWidth></minWidth>
+            <preferredHeight></preferredHeight>
+            <preferredWidth></preferredWidth>
+            <propertyVsUnit>
+                <entry>
+                    <key>Top</key>
+                    <value>dp</value>
+                </entry>
+                <entry>
+                    <key>Left</key>
+                    <value>dp</value>
+                </entry>
+                <entry>
+                    <key>Bottom</key>
+                    <value>default</value>
+                </entry>
+                <entry>
+                    <key>Right</key>
+                    <value>default</value>
+                </entry>
+                <entry>
+                    <key>Width</key>
+                    <value>dp</value>
+                </entry>
+                <entry>
+                    <key>Height</key>
+                    <value>dp</value>
+                </entry>
+                <entry>
+                    <key>Center X</key>
+                    <value>default</value>
+                </entry>
+                <entry>
+                    <key>Center Y</key>
+                    <value>default</value>
+                </entry>
+                <entry>
+                    <key>Z Index</key>
+                    <value>default</value>
+                </entry>
+                <entry>
+                    <key>Min Width</key>
+                    <value>default</value>
+                </entry>
+                <entry>
+                    <key>Min Height</key>
+                    <value>default</value>
+                </entry>
+                <entry>
+                    <key>Max Width</key>
+                    <value>default</value>
+                </entry>
+                <entry>
+                    <key>Max Height</key>
+                    <value>default</value>
+                </entry>
+                <entry>
+                    <key>content OffsetX</key>
+                    <value>dp</value>
+                </entry>
+                <entry>
+                    <key>content OffsetY</key>
+                    <value>dp</value>
+                </entry>
+                <entry>
+                    <key>contentSizeHeight</key>
+                    <value>dp</value>
+                </entry>
+                <entry>
+                    <key>contentSizeWidth</key>
+                    <value>dp</value>
+                </entry>
+                <entry>
+                    <key>rowHeight</key>
+                    <value>dp</value>
+                </entry>
+                <entry>
+                    <key>rowWidth</key>
+                    <value>%</value>
+                </entry>
+            </propertyVsUnit>
+            <right></right>
+            <rowHeight>40</rowHeight>
+            <rowWidth>100</rowWidth>
+            <top></top>
+            <width></width>
+            <xlocation>0</xlocation>
+            <ylocation>0</ylocation>
+            <zOrder>1</zOrder>
+        </flexConstraints>
         <layoutType>0</layoutType>
         <gridviewConfig>
             <referenceHeight>0</referenceHeight>
@@ -4268,6 +5535,7 @@
             <rc_winmobile>true</rc_winmobile>
             <rc_winmobile6x>true</rc_winmobile6x>
             <rc_winphone8>true</rc_winphone8>
+            <rc_winphone81s>true</rc_winphone81s>
             <tabspa_ipad>true</tabspa_ipad>
             <tabspa_windows>true</tabspa_windows>
             <tabspaspa_android>true</tabspaspa_android>
@@ -4828,6 +6096,67 @@
         <contentAlign>4</contentAlign>
         <containerWeight>0</containerWeight>
         <projectState>0</projectState>
+        <event_onTap>
+            <evtSequence>
+                <enabled>true</enabled>
+                <seqname></seqname>
+            </evtSequence>
+        </event_onTap>
+        <event_onDoubleTap>
+            <evtSequence>
+                <enabled>true</enabled>
+                <seqname></seqname>
+            </evtSequence>
+        </event_onDoubleTap>
+        <event_onLongPress>
+            <evtSequence>
+                <enabled>true</enabled>
+                <seqname></seqname>
+            </evtSequence>
+        </event_onLongPress>
+        <event_onPinch>
+            <evtSequence>
+                <enabled>true</enabled>
+                <seqname></seqname>
+            </evtSequence>
+        </event_onPinch>
+        <event_onRotate>
+            <evtSequence>
+                <enabled>true</enabled>
+                <seqname></seqname>
+            </evtSequence>
+        </event_onRotate>
+        <event_onSwipe>
+            <evtSequence>
+                <enabled>true</enabled>
+                <seqname></seqname>
+            </evtSequence>
+        </event_onSwipe>
+        <event_onTouchStart>
+            <evtSequence>
+                <enabled>true</enabled>
+                <seqname></seqname>
+            </evtSequence>
+        </event_onTouchStart>
+        <event_onTouchMove>
+            <evtSequence>
+                <enabled>true</enabled>
+                <seqname></seqname>
+            </evtSequence>
+        </event_onTouchMove>
+        <event_onTouchEnd>
+            <evtSequence>
+                <enabled>true</enabled>
+                <seqname></seqname>
+            </evtSequence>
+        </event_onTouchEnd>
+        <event_onTouchCancel>
+            <evtSequence>
+                <enabled>true</enabled>
+                <seqname></seqname>
+            </evtSequence>
+        </event_onTouchCancel>
+        <winphone8_enableCache>false</winphone8_enableCache>
     </children>
     <contentAlign>4</contentAlign>
     <gridviewConfig>
@@ -4837,4 +6166,5 @@
     </gridviewConfig>
     <containerWeight>0</containerWeight>
     <projectState>0</projectState>
+    <winphone8_enableCache>false</winphone8_enableCache>
 </kPage>
