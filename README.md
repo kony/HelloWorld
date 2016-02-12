@@ -37,3 +37,4 @@ To build and run this app you will need to download and install [Kony Studio](ht
  * DesktopWeb
  * Kiosk
  
+# KonyStudio Version: 7.0
