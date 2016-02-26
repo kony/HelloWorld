@@ -11,10 +11,10 @@
 		</taskdef>
 		<osfamily property="os.family"/>	
 	<echo message="Started script..."/>
-	<property name="input.file" location="${basedir}/build.properties"/>
+	<property name="input.file" location="${basedir}/HeadlessBuild.properties"/>
 	
 	<if>
-    <available file="${basedir}/global.properties"/>
+    <available file="../HeadlessBuild-Global.properties"/>
     <then>
       <property name="global.available" value="true"/>
     </then>
@@ -27,10 +27,11 @@
 	<if>
 	 <equals arg1="${global.available}" arg2="true"/>
 		<then>
-			<property name="global.file" location="${basedir}/global.properties"/>
+			<property name="global.file" location="../HeadlessBuild-Global.properties"/>
 		</then>
 		<else>
-			<property name="global.file" location="../global.properties"/>
+			<property name="global.file" location="${basedir}/HeadlessBuild-Global.properties"/>
+			
 		</else>
 	</if>
 	

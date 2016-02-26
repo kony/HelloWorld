@@ -1,5 +1,5 @@
 // -- SDK File : KonySyncLib.js 
-//  --Generated On Mon Jan 11 17:29:19 IST 2016******************* 
+//  --Generated On Fri Feb 19 18:08:53 IST 2016******************* 
 //  **************** Start jsonWriter.js*******************
 //#ifdef iphone
 	//#define KONYSYNC_IOS
@@ -469,9 +469,9 @@ kony.sync.validateScopeSession = function(abortSync, syncErrorObject) {
 		if (isSyncComplete === true) {
 			sync.log.trace("is Sync Complete true...");
 			
-			if(!kony.sync.isNullOrUndefined(sync.util)) {
+			if(typeof(binary) !== "undefined" && typeof(binary.util) !== "undefined") {
 				sync.log.trace("notifying the on demand binary thread. after sync start");
-				sync.util.notifyToPrepareJobs();
+				binary.util.notifyToPrepareJobs();
 			}
 			//var currentSyncConfig = JSON.stringify(kony.sync.currentSyncConfigParams);
 			//store the current sync config so that it can be used later.
@@ -609,6 +609,11 @@ kony.sync.startUpload = function() {
 
 kony.sync.uploadCompleted = function(error, msg) {
 	sync.log.trace("Entering kony.sync.uploadCompleted ");
+	if(kony.sync.isSyncStopped){
+    	sync.log.debug("sync stopped in uploadCompleted");
+		kony.sync.stopSyncSession();
+		return;
+	}
 	if(error===true){
 		sync.log.error("Error Occurred during upload : ",msg);
 		
@@ -679,6 +684,11 @@ kony.sync.uploadCompleted = function(error, msg) {
 
 kony.sync.downloadCompletedCallback = function(error, msg) {
 	sync.log.trace("Entering kony.sync.downloadCompletedCallback ");
+	if(kony.sync.isSyncStopped){
+    	sync.log.debug("sync stopped in downloadCompletedCallback");
+		kony.sync.stopSyncSession();
+		return;
+	}
 	if(error){
 		sync.log.error("Error occurred during download : ", msg); 
 		
@@ -687,7 +697,6 @@ kony.sync.downloadCompletedCallback = function(error, msg) {
 			kony.sync.onSchemaUpgradeErrorFromServer(msg);			
 			return;
 		}
-		
 		
 		kony.sync.verifyAndCallClosure(kony.sync.currentSyncConfigParams[kony.sync.onScopeError], msg);
 		kony.sync.isErrorInAnyScope = true;
@@ -772,6 +781,7 @@ sync.stopSession = function(callback){
 
 kony.sync.stopSyncSession = function(){
 	kony.sync.isSyncStopped = false;
+	kony.sync.globalIsDownloadStarted = true;
 	kony.sync.verifyAndCallClosure(kony.sync.onSyncStop);
 };
 //  **************** End KonySyncAPI.js*******************
@@ -935,7 +945,7 @@ kony.sync.blobManager.saveBlob = function(tx, tableName, columnName, base64, err
 
 		var blobId = resultset.insertId;
 
-		var blobFileName = sync.util.saveBase64File("" + blobId, base64);
+		var blobFileName = binary.util.saveBase64File("" + blobId, base64);
 		sync.log.trace("blob filepath returned is " + blobFileName);
 		//if file creation is successful.. insert the file path to the blobstoremanager.
 		var valuesTable = {};
@@ -1002,7 +1012,7 @@ kony.sync.blobManager.deleteBlob = function(tx, blobid, errorCallback) {
 			valuesTable[kony.sync.blobManager.state] = kony.sync.blobManager.DELETE_PROCESSING;
 			kony.sync.blobManager.updateBlobManager(tx, blobid, valuesTable, errorCallback);
 
-			var deleteFile = sync.util.deleteBlobFile(blobMeta[kony.sync.blobManager.localPath]);
+			var deleteFile = binary.util.deleteBlobFile(blobMeta[kony.sync.blobManager.localPath]);
 			//TODO - add check to deletefile status..
 			var query = kony.sync.qb_createQuery();
 			kony.sync.qb_delete(query, kony.sync.blobStoreManagerTable);
@@ -1066,7 +1076,7 @@ kony.sync.blobManager.updateBlob = function(tx, blobid, base64, errorCallback) {
 			valuesTable[kony.sync.blobManager.state] = kony.sync.blobManager.UPDATE_PROCESSING;
 			kony.sync.blobManager.updateBlobManager(tx, blobid, valuesTable, errorCallback);
 
-			var isBlobSaved = sync.util.saveBase64File("" + blobid, base64);
+			var isBlobSaved = binary.util.saveBase64File("" + blobid, base64);
 
 			if (isBlobSaved !== null) {
 				valuesTable = {};
@@ -1267,11 +1277,11 @@ kony.sync.blobManager.onDemandUniversalSuccessCallback = function(response) {
 
 						successResponse.pkTable = kony.sync.blobManager.getRegisteredPkTable(blobId);
 						if (blobType === kony.sync.BlobType.FILE) {
-							var decodedFilePath = sync.util.decodeBase64File(filePath);
+							var decodedFilePath = binary.util.decodeBase64File(filePath);
 							successResponse.filePath = decodedFilePath;
 						}
 						else {
-							var base64String = sync.util.getBase64FromFiles([filePath]);
+							var base64String = binary.util.getBase64FromFiles([filePath]);
 							successResponse.base64 = base64String[0];
 						}
 						var successCallback = kony.sync.blobManager.getRegisteredSuccessCallback(blobId);
@@ -1338,7 +1348,11 @@ kony.sync.blobManager.onDemandUniversalErrorCallback = function(response) {
 				sync.log.trace("invoking error callback for the download request..");
 				var errorCallback = kony.sync.blobManager.getRegisteredErrorCallback(response.blobid);
 				if (!kony.sync.isNullOrUndefined(errorCallback)) {
-					kony.sync.verifyAndCallClosure(errorCallback, response);
+					//create an error object with appropriate details..
+					var errorMessage = kony.sync.getErrorMessage(kony.sync.errorCodeBinaryDownloadFailed) +
+						" status "+response.statusCode + " " + response.errorMessage;
+					var errorObject = kony.sync.getErrorTable(kony.sync.errorCodeBinaryDownloadFailed, errorMessage);
+					kony.sync.verifyAndCallClosure(errorCallback, errorObject);
 				}
 			} else {
 				//increment total number of download jobs failed..
@@ -1347,23 +1361,25 @@ kony.sync.blobManager.onDemandUniversalErrorCallback = function(response) {
 				if (!kony.sync.isNullOrUndefined(kony.sync.currentSyncConfigParams) &&
 					kony.sync.isValidFunctionType(kony.sync.currentSyncConfigParams["uploadBinaryErrorCallback"])) {
 					var uploadErrorCallback = kony.sync.currentSyncConfigParams["uploadBinaryErrorCallback"];
-					//update the status.
-					kony.sync.verifyAndCallClosure(uploadErrorCallback, response);
+					//create an error object with appropriate details..
+					var errorMessage = kony.sync.getErrorMessage(kony.sync.errorCodeBinaryUploadFailed) +
+							" status "+response.statusCode + " " + response.errorMessage;
+					var errorObject = kony.sync.getErrorTable(kony.sync.errorCodeBinaryUploadFailed, errorMessage);
+					kony.sync.verifyAndCallClosure(uploadErrorCallback, errorObject);
 
 				} else {
 					//upload failed.
 					sync.log.error("sync binary upload failed for blob id "+response.blobid);
 				}
 			}
+			//invoke the notifier..
+			kony.sync.invokeBinaryNotifiers(isDownload);
 		}
 
 		//using the request state find out if the request is for upload/ download.
-		if(response[kony.sync.requestState] === kony.sync.blobManager.UPLOAD_IN_PROGRESS) {
+		if(parseInt(response[kony.sync.requestState]) === kony.sync.blobManager.UPLOAD_IN_PROGRESS) {
 			isDownload = false;
 		}
-		//invoke the notifier..
-		kony.sync.invokeBinaryNotifiers(isDownload);
-
 		kony.sync.blobManager.updateStatusAfterOndemandJob(response, false, isDownload ,invokeCallbacks);
 	}
 };
@@ -1451,10 +1467,10 @@ kony.sync.blobManager.updateStatusAfterOndemandJob = function(response, success,
 					var fileSuccess;
 					if (previousFileName === "") {
 						filePath = filePath.substring(0, filePath.indexOf("_temp"));
-						fileSuccess = sync.util.renameFile(response["filePath"], filePath);
+						fileSuccess = binary.util.renameFile(response["filePath"], filePath);
 						finalFilePath = filePath;
 					} else {
-						fileSuccess = sync.util.renameFile(response["filePath"], previousFileName);
+						fileSuccess = binary.util.renameFile(response["filePath"], previousFileName);
 						finalFilePath = previousFileName;
 					}
 
@@ -1514,7 +1530,7 @@ kony.sync.blobManager.updateStatusAfterOndemandJob = function(response, success,
 				success = false;
 				sync.log.trace("some other operation got invoked after download call. So, ignoring downloaded file");
 				if (response.hasOwnProperty["filePath"]) {
-					sync.util.deleteBlobFile(response["filePath"]);
+					binary.util.deleteBlobFile(response["filePath"]);
 				}
 			}
 		} else {
@@ -1708,8 +1724,10 @@ kony.sync.blobManager.triggerDownload = function(tx, tableName, columnName, pks,
 	}
 	sync.log.trace("updated parent table with the blod id.");
 
-	sync.util.notifyToPrepareJobs();
+	binary.util.notifyToPrepareJobs();
+	return blobId;
 };
+
 
 /**
  * Method retriggers the download (incase of force-download / failed download.)
@@ -1736,7 +1754,7 @@ kony.sync.blobManager.retryDownload = function(tx, blobid, blobType, pks, succes
 
 	kony.sync.blobManager.registerCallbacks(blobid, pks, blobType, successCallback, errorCallback);
 
-	sync.util.notifyToPrepareJobs();
+	binary.util.notifyToPrepareJobs();
 
 };
 
@@ -1759,12 +1777,12 @@ kony.sync.blobManager.getBlobInline = function(tx, blobid, blobType, tableName, 
 
 		if (blobType === kony.sync.BlobType.FILE) {
 			//return blobMeta[kony.sync.blobManager.localPath];
-			var decodedFilePath = sync.util.decodeBase64File(blobMeta[kony.sync.blobManager.localPath]);
+			var decodedFilePath = binary.util.decodeBase64File(blobMeta[kony.sync.blobManager.localPath]);
 			successResponse.filePath = decodedFilePath;
 			successCallback(successResponse);
 
 		} else {
-			var base64String = sync.util.getBase64FromFiles([blobMeta[kony.sync.blobManager.localPath]]);
+			var base64String = binary.util.getBase64FromFiles([blobMeta[kony.sync.blobManager.localPath]]);
 			if (base64String[0].length > 0) {
 				successResponse.base64 = base64String[0];
 				successCallback(successResponse);
@@ -1814,9 +1832,10 @@ kony.sync.blobManager.getBlobOnDemand = function(tx, blobid, blobType, tableName
 	//no blob id. trigger download
 	if(blobid === kony.sync.blobRefNotDefined) {
 		sync.log.trace("triggering download --> getBlobOnDemand");
-		kony.sync.blobManager.registerCallbacks(blobid, pks, blobType, successCallback, errorCallback);
-
-		kony.sync.blobManager.triggerDownload(tx, tableName, columnName, pks, errorCallback);
+		var generatedBlobId = kony.sync.blobManager.triggerDownload(tx, tableName, columnName, pks, errorCallback);
+		if(generatedBlobId) {
+			kony.sync.blobManager.registerCallbacks(generatedBlobId, pks, blobType, successCallback, errorCallback);
+		}
 		//increment total number of download jobs..
 		kony.sync.incrementTotalJobs(true);
 
@@ -1847,13 +1866,13 @@ kony.sync.blobManager.getBlobOnDemand = function(tx, blobid, blobType, tableName
 					successResponse.pkTable = pks;
 					//if requested response type is FILE, return the filePath.
 					if (blobType === kony.sync.BlobType.FILE) {
-						var decodedFilePath = sync.util.decodeBase64File(blobMeta[kony.sync.blobManager.localPath]);
+						var decodedFilePath = binary.util.decodeBase64File(blobMeta[kony.sync.blobManager.localPath]);
 						successResponse.filePath = decodedFilePath;
 						sync.log.trace("response to the user with filepath "+JSON.stringify(successResponse));
 						successCallback(successResponse);
 					} else {
 						//else read the base64 string from the file.
-						var base64String = sync.util.getBase64FromFiles([blobMeta[kony.sync.blobManager.localPath]])
+						var base64String = binary.util.getBase64FromFiles([blobMeta[kony.sync.blobManager.localPath]])
 						if (base64String[0].length > 0) {
 							successResponse.base64 = base64String[0];
 							sync.log.trace("response to the user with base64 string "+JSON.stringify(successResponse));
@@ -2344,7 +2363,7 @@ kony.sync.blobManager.onDemandManager.jobs = null;
 kony.sync.blobManager.onDemandManager.setJobs = function(jobs) {
 	kony.sync.blobManager.onDemandManager.jobs = null;
 	kony.sync.blobManager.onDemandManager.jobs = jobs;
-	sync.util.notifyToProcessJobs();
+	binary.util.notifyToProcessJobs();
 };
 
 kony.sync.blobManager.getPreparedJobs = function() {
@@ -2510,6 +2529,8 @@ if(typeof(kony.sync.blobManager) === "undefined") {
  * @param columnName - column name
  * @returns {*} -downloadPolicy for binary column, null for non binary columns.
  */
+
+
 kony.sync.getDownloadPolicy = function(tableName, columnName) {
 
     var downloadPolicy = kony.sync.notSupported;
@@ -2886,7 +2907,7 @@ kony.sync.startChunking = function(url, serviceParams, result, callback){
 			sync.log.error("Error occurred while inserting chunk information in metatable");
 			callback(kony.sync.frameDownloadError(null, null, 1));
 		}
-		else{
+		else {
 			var errMsg = "Error occurred while opening transaction to store chunk information in metatable";
 			sync.log.error(errMsg);
 			callback(kony.sync.frameDownloadError(null, errMsg, 2));
@@ -2901,15 +2922,19 @@ kony.sync.startChunking = function(url, serviceParams, result, callback){
 
 //Starts Chunking
 kony.sync.downloadChunks = function(url, serviceParams, payloadId, chunkCount, hashSum, initialData, isResumed, downloadedChunks, callback){
+
 	sync.log.trace("Entering kony.sync.downloadChunks");
+
 	if(kony.sync.isSyncStopped){
 		kony.sync.stopSyncSession();
 		return;
 	}
+
 	var retries = kony.sync.currentSyncConfigParams[kony.sync.numberOfRetriesKey];
 	var serverParams = {};
 	serviceParams[kony.sync.payloadIdKey] = payloadId;
 	serviceParams[kony.sync.chunkCountKey] = chunkCount;
+	sync.log.trace("kony.sync.downloadChunks chunkCount "+chunkCount+" and downloadedChunks ",downloadedChunks);
 	var noOfParallelCalls = 1;
 	//temporarily disabling parallel calls
 	/*if(!kony.sync.isNull(kony.sync.currentSyncConfigParams[kony.sync.maxParallelChunksKey])){
@@ -2925,8 +2950,10 @@ kony.sync.downloadChunks = function(url, serviceParams, payloadId, chunkCount, h
 	var corruptedData = false;
 	var callNo = 0;
 	var infoObj = {};
+	var chunkMap;
 	var i = null;
 	//process first chunk if chunking is not resumed from an earlier point
+	sync.log.trace("kony.sync.downloadChunks isResumed ",isResumed);
 	if(!isResumed){
 		downloadNetworkCallback(initialData, 1);
 	}
@@ -2936,16 +2963,18 @@ kony.sync.downloadChunks = function(url, serviceParams, payloadId, chunkCount, h
 	}*/
 	if(isResumed){
 		//find the remaining ids
-		
 		//create map for all the ids
-		var chunkMap = {};
-		for(i=1; i<=chunkCount; i++){
+		sync.log.trace("kony.sync.downloadChunks - isResumed true for chunkCount "+chunkCount+ " with downloadedChunks ",downloadedChunks);
+		chunkMap = {};
+		for(i=1; i<=chunkCount; i++) {
 			chunkMap[i] = 0; //initially set 0 for all the ids
 		}
-		for(i in downloadedChunks){
+		for(i in downloadedChunks) {
+			sync.log.trace("kony.sync.downloadChunks process chunks ",downloadedChunks);
 			chunkMap[downloadedChunks[i]] = 1; //set 1 for downloaded ids
 			chunkProcessed++; //count processed chunks
 		}
+
 		
 		i=1;
 		for(callNo=1; callNo<=chunkCount; callNo++){
@@ -2979,11 +3008,18 @@ kony.sync.downloadChunks = function(url, serviceParams, payloadId, chunkCount, h
 		}
 	}
 
-	
 	function downloadNetworkCallbackStatus(status, result, info){
+		sync.log.trace("Entering kony.sync.downloadChunks->downloadNetworkCallbackStatus with status "+status+" result "
+			+JSON.stringify(result)+ " info ",info);
 		if(status === 400){
-			sync.log.trace("Entering kony.sync.downloadChunks->downloadNetworkCallbackStatus");
 			sync.log.info("Got Response for Chunk No:" + info[kony.sync.chunkNoKey]);
+
+			//fallback when opstatus < 0
+			if(result.opstatus < 0){
+				sync.log.info("Got result.opstatus:" + result.opstatus + " and result.errcode:" + result.errcode + "setting errcode to opstatus");
+				result.opstatus = result.errcode;
+			}
+
 			if(kony.sync.eligibleForRetry(result.opstatus, retries)){
 				retries--;
 				kony.sync.retryServiceCall(url, result, info, retries, downloadNetworkCallback, serviceParams);
@@ -2993,14 +3029,16 @@ kony.sync.downloadChunks = function(url, serviceParams, payloadId, chunkCount, h
 				downloadNetworkCallback(result, info[kony.sync.chunkNoKey]);
 			}
 		}else if(status === 300){
-				downloadNetworkCallback(kony.sync.getNetworkCancelError(),info[kony.sync.chunkNoKey]);
+			downloadNetworkCallback(kony.sync.getNetworkCancelError(),info[kony.sync.chunkNoKey]);
 		}
 	}
 	
 	function downloadNetworkCallback(result, info){
-		sync.log.trace("Entering kony.sync.downloadChunks->downloadNetworkCallback");
+		sync.log.trace("Entering kony.sync.downloadChunks->downloadNetworkCallback with result "+JSON.stringify(result)+" " +
+			"info -> ",info);
 		serverParams[kony.sync.hostName] = kony.sync.getServerDetailsHostName(result);
 		serverParams[kony.sync.ipAddress] = kony.sync.getServerDetailsIpAddress(result);
+		sync.log.trace("downloadNetworkCallback isResumed "+isResumed+" for callNo "+callNo+" withChunkMap ",chunkMap);
 		if(callNo <= chunkCount){
 			if(!isResumed){
 				if(callNo !== 0){
@@ -3040,6 +3078,7 @@ kony.sync.downloadChunks = function(url, serviceParams, payloadId, chunkCount, h
 			sync.log.error("Error occurred while downloading chunks: Code=" + result.opstatus + ", message=" + result.errmsg);
 			chunkErrorMap[chunkId] = result.errmsg;
 			kony.sync.callOnChunkError(chunkCount, payloadId, kony.sync.currentScope[kony.sync.scopeName], chunkId, chunkCount - chunkProcessed, chunkProcessed, result.opstatus, result.errmsg, serverParams);
+			sync.log.trace("downloadNetworkCallback - calling allChunksProcessed - for result.opstatus !== 0");
 			if(allChunksProcessed()){
 				handleError();
 			}
@@ -3049,22 +3088,30 @@ kony.sync.downloadChunks = function(url, serviceParams, payloadId, chunkCount, h
 			sync.log.error("Error occurred while downloading chunks: message=" + result.d.msg);
 			chunkErrorMap[chunkId] = result.d.msg;
 			kony.sync.callOnChunkError(chunkCount, payloadId, kony.sync.currentScope[kony.sync.scopeName], chunkId, chunkCount - chunkProcessed, chunkProcessed, kony.sync.errorCodeUnknownServerError, result.d.msg, serverParams);
+			sync.log.trace("downloadNetworkCallback - calling allChunksProcessed - for result.d.error == true");
 			if(allChunksProcessed()){
 				handleError();
 			}
 		}
 		else{
 			//store in local DB
+			//sync.log.trace("calling kony.sync.storeChunkInDB with payl");
 			kony.sync.storeChunkInDB(payloadId, chunkId, result.d[kony.sync.chunkDataKey], kony.sync.currentScope[kony.sync.scopeName], chunkDataStoredCallback);
+			sync.log.trace("downloadNetworkCallback - calling allChunksProcessed -storeChunkInDB");
 			if(allChunksProcessed()){
 				handleError();
 			}
+
 		}
 	}
 	
 	function allChunksProcessed(){
-		return chunkProcessed + chunkingFailed === chunkCount;
+		sync.log.trace("allChunksProcessed chunkProcessed "+chunkProcessed+" chunkingFailed "+chunkingFailed+" chunkCount "+chunkCount);
+		var areAllChunksProcessed = (chunkProcessed + chunkingFailed === chunkCount);
+		sync.log.trace("allChunksProcessed result "+areAllChunksProcessed);
+		return areAllChunksProcessed;
 	}
+
 	function handleError(){
 		sync.log.info("All chunking calls for current batch with total of " + chunkCount + " completed.")
 		if(chunkProcessed > 0){
@@ -3084,11 +3131,11 @@ kony.sync.downloadChunks = function(url, serviceParams, payloadId, chunkCount, h
 		}		
 	}
 	
-	
 	function chunkDataStoredCallback(chunkId, errorMap){
 		sync.log.trace("Entering kony.sync.downloadChunks->chunkDataStoredCallback");
 		//if error, add to errorMap
 		if(!kony.sync.isNull(errorMap)){
+			sync.log.error("chunkDataStoredCallback errorMap incrementing chunkingFailed. ",errorMap);
 			chunkingFailed++;
 			chunkErrorMap[chunkId] = errorMap.errorCode;
 			sync.log.error("Error occurred while storing chunk " +  chunkId + " in DB");
@@ -3096,13 +3143,22 @@ kony.sync.downloadChunks = function(url, serviceParams, payloadId, chunkCount, h
 		}
 		else{
 			chunkProcessed++;
+			sync.log.trace("chunkDataStoredCallback incrementing number of chunks processed.."+chunkProcessed);
 			kony.sync.callOnChunkSuccess(chunkCount, payloadId, kony.sync.currentScope[kony.sync.scopeName], chunkId, chunkCount - chunkProcessed, chunkProcessed, serverParams);
 		}
-		
+		sync.log.trace("chunkDataStoredCallback - calling allChunksProcessed ");
 		if(allChunksProcessed() && handleError()){		
-			//gather all results from chunkMap		
+			//gather all results from chunkMap
+			sync.log.trace("chunkDataStoredCallback allChunksProcessed true and handleError true");
 			kony.sync.getChunksFromDB(payloadId, chunkCount, kony.sync.currentScope[kony.sync.scopeName], chunkDataProcessCallback);		
-		}
+		} /*else {
+			sync.log.error("chunkDataStoredCallback Either allChunksProcessed or handleError is not true..");
+			var errorObj = kony.sync.getErrorTable(kony.sync.errorCodeChunking, kony.sync.getErrorMessage(kony.sync.errorCodeChunking));
+			sync.log.error("Error in chunking ", errorObj);
+
+			//call download complete callback with error
+			callback(errorObj);
+		}*/
 	
 	}
 	
@@ -3213,17 +3269,15 @@ kony.sync.frameDownloadError = function(errorMessage, errorInfo, dbError, errorC
 };
 
 //This method will store chunks in DB
-kony.sync.storeChunkInDB = function(payloadId, chunkId, chunkData, scopeName, callback){
-	sync.log.trace("Entering kony.sync.storeChunkInDB");
+kony.sync.storeChunkInDB = function(payloadId, chunkId, chunkData, scopeName, callback, storedChunkCallback){
+	sync.log.trace("Entering kony.sync.storeChunkInDB for chunkId "+chunkId);
 	var isError = false;
 	var dbname = kony.sync.currentScope[kony.sync.scopeDataSource];
-	var dbconnection = kony.sync.getConnectionOnly(dbname, dbname, transactionFailedCallback);
-	if(dbconnection!==null){
-		kony.db.transaction(dbconnection, transactionCallback, transactionFailedCallback, transactionSuccessCallback);
-	}
+
 
 	function transactionCallback(tx){
-		sync.log.trace("Entering kony.sync.storeChunkInDB->transactionCallback");
+		sync.log.trace("Entering kony.sync.storeChunkInDB->transactionCallback for chunkID "+chunkId);
+		sync.log.trace("kony.sync.storeChunkInDB - payloadId -> "+payloadId+" chunkId -> "+chunkId+" chunkData -> ",chunkData);
 		//check for dupicate chunks
 		var wcs = [];
 		wcs.push({key:kony.sync.metaTableScopeColumn, value:scopeName});
@@ -3239,7 +3293,8 @@ kony.sync.storeChunkInDB = function(payloadId, chunkId, chunkData, scopeName, ca
 		var sql = query_compile[0];
 		var params = query_compile[1];
 		var resultset = kony.sync.executeSql(tx, sql, params);
-		if(resultset===false){
+		sync.log.trace("kony.sync.storeChunkInDB - resultset for check duplicate counts ",resultset);
+		if(resultset === null || resultset===false){
 			isError = true;
 			return;
 		}
@@ -3262,7 +3317,9 @@ kony.sync.storeChunkInDB = function(payloadId, chunkId, chunkData, scopeName, ca
 		query_compile = kony.sync.qb_compile(query);
 		sql = query_compile[0];
 		params = query_compile[1];
-		if(kony.sync.executeSql(tx, sql, params)===false){
+		var storeChunkResultSet = kony.sync.executeSql(tx, sql, params);
+		sync.log.trace("kony.sync.storeChunkInDB - resultset storing chunk into db ",storeChunkResultSet);
+		if(storeChunkResultSet===false || storeChunkResultSet === null){
 			isError = true;
 		}
 	}
@@ -3275,6 +3332,12 @@ kony.sync.storeChunkInDB = function(payloadId, chunkId, chunkData, scopeName, ca
 	function transactionSuccessCallback(){
 		sync.log.trace("Entering kony.sync.storeChunkInDB->transactionSuccessCallback");
 		callback(chunkId);
+	}
+
+	var dbconnection = kony.sync.getConnectionOnly(dbname, dbname, transactionFailedCallback);
+	if(dbconnection!==null){
+		sync.log.trace("kony.sync.storeChunkInDb - dbConnection successful");
+		kony.db.transaction(dbconnection, transactionCallback, transactionFailedCallback, transactionSuccessCallback);
 	}
 };
 
@@ -4441,8 +4504,8 @@ kony.sync.syncDropDatabase = function (dbList, successcallback, errorcallback) {
 			kony.sync.startTransaction(connection1, single_transaction_callback, single_transaction_success_callback, single_transaction_error_callback);
 		} else {
 			sync.log.info("Deleting all binary files ");
-			if(typeof(sync.util) !== "undefined") {
-				sync.util.deleteAllBinaryFiles();
+			if(typeof(binary) !== "undefined" && typeof(binary.util) !== "undefined") {
+				binary.util.deleteAllBinaryFiles();
 			}	
 			sync.log.info("Reinitializing...");
 			sync.init(successcallback, errorcallback);
@@ -4654,8 +4717,13 @@ kony.sync.syncDownloadchangesGetLastSynctime = function(rowItem) {
         params.serverupdateackcount = "Server Update Ack Count :" + kony.sync.serverUpdateAckCount;
         sync.log.debug("@@@@@@" + params);
         kony.table.insert(kony.sync.currentSyncLog, params);
-        var batchcontext = {};
         sync.log.debug(kony.sync.serverInsertCount);
+        if(kony.sync.isSyncStopped){
+        	sync.log.debug("sync stopped in downloadCompleted");
+			kony.sync.stopSyncSession();
+			return;
+		}
+        var batchcontext = {};
         batchcontext[kony.sync.numberOfRowsDownloaded] = kony.sync.serverInsertCount + kony.sync.serverUpdateCount + kony.sync.serverDeleteCount;
         batchcontext[kony.sync.numberOfRowsInserted] = kony.sync.serverInsertCount;
         batchcontext[kony.sync.numberOfRowsUpdated] = kony.sync.serverUpdateCount;
@@ -4713,6 +4781,11 @@ kony.sync.syncDownloadchangesGetLastSynctime = function(rowItem) {
 	//This function should be called after finishing all post download tasks like removeafterupload
 	function postDownloadProcessing(code) {
 		sync.log.trace("Entering postDownloadProcessing");
+		if(kony.sync.isSyncStopped){
+			sync.log.debug("Stopped in  postDownloadProcessing");
+			kony.sync.stopSyncSession();
+			return;
+		}
 		if(code===0){
 			kony.sync.verifyAndCallClosure(kony.sync.currentSyncConfigParams[kony.sync.onDownloadSuccess], kony.sync.currentSyncReturnParams);
 			/*if (!kony.sync.isNullOrUndefined(kony.sync.currentSyncScopeFilter)) {
@@ -4764,6 +4837,11 @@ kony.sync.syncDownloadchangesGetLastSynctime = function(rowItem) {
 		}
 		if (!kony.sync.isNullOrUndefined(serverChanges.opstatus) && serverChanges.opstatus !== 0) {
 			kony.sync.globalIsDownloadStarted = true;
+			if(kony.sync.isSyncStopped){
+				sync.log.debug("Sync stopped in downloadcallback in opstatus check");		
+				kony.sync.stopSyncSession();
+				return;
+			}
 			if (!kony.sync.isNullOrUndefined(serverChanges.d)) {
 				kony.sync.onDownloadCompletion(true, kony.sync.getServerError(serverChanges.d, "download"));
 			} else {
@@ -4771,6 +4849,11 @@ kony.sync.syncDownloadchangesGetLastSynctime = function(rowItem) {
 			}
 			return;
         }else if(kony.sync.isNullOrUndefined(serverChanges.d)){
+        	if(kony.sync.isSyncStopped){
+        		sync.log.debug("Sync stopped in downloadcallback in serverchanges.d check");
+				kony.sync.stopSyncSession();
+				return;
+			}
 			kony.sync.onDownloadCompletion(true, kony.sync.getServerError(serverChanges));
 			return;
 		}
@@ -4783,6 +4866,11 @@ kony.sync.syncDownloadchangesGetLastSynctime = function(rowItem) {
 			if(hasResults && (serverChanges.d["results"].length > 0))   {
                 applyDownloadBatchChangesToDBonError();
             } else  {
+            	if(kony.sync.isSyncStopped){
+            		sync.log.debug("Sync stopped in downloadcallback in serverchanges.d.error true");
+					kony.sync.stopSyncSession();
+					return;
+				}
                 kony.sync.onDownloadCompletion(true, kony.sync.getServerError(serverChanges.d, "download"));
             }
             return;
@@ -5254,7 +5342,7 @@ kony.sync.applyChangesToBlobStoreDB = function(tx, tablename, row, blobMap, chan
 					}
 					break;
 			}
-			sync.util.notifyToPrepareJobs();
+			binary.util.notifyToPrepareJobs();
 		}
 	}
 
@@ -5302,8 +5390,7 @@ kony.sync.applyChangesToBlobStoreDB = function(tx, tablename, row, blobMap, chan
 			return false;
 		}
 	}
-
-	//invoke the notifier..
+	//invoke the status update notifier..
 	kony.sync.invokeBinaryNotifiers(true);
 };
 
@@ -5357,8 +5444,6 @@ kony.sync.applyChangesToDB = function (context) {
 	for (var i = startposition; i < endposition; i++) {
 		var row = results[i];
 		var tablename = row.__metadata.type;
-
-
 
 		if (kony.sync.isNullOrUndefined(kony.sync.objectLevelInfoMap[tablename])) {
 			kony.sync.objectLevelInfoMap[tablename] = {};
@@ -5508,13 +5593,16 @@ kony.sync.applyChangesToDB = function (context) {
 					function deleteOnDemandBinaryEntries() {
 						sync.log.trace("entering deleteOnDemandBinaryEntries..");
 
-
+						function updateBlobErrorCallback(err) {
+							kony.sync.errorObject = err;
+							kony.sync.downloadFailed(false);
+						}
 						var binaryColumns = kony.sync.getBinaryColumns(tablename);
 
 						if(binaryColumns) {
 							sync.log.trace("onDemandColumns for " + tablename + " are " + JSON.stringify(binaryColumns));
 							for (var j = 0; j < binaryColumns.length; j++) {
-								if (kony.sync.getDownloadPolicy(tablename, binaryColumns[j] !== kony.sync.inline)) {
+								if (kony.sync.getDownloadPolicy(tablename, binaryColumns[j]) !== kony.sync.inline) {
 									var pkColumns = kony.sync.currentScope.syncTableDic[tablename].Pk_Columns;
 
 									var pkTable = {};
@@ -5558,16 +5646,15 @@ kony.sync.applyChangesToDB = function (context) {
 								return false;
 							} else {
 								//update blobstore manager ?
-								var blobManagerUpdate = updateBlobStoreManager(pksetwcs);
-								if(!blobManagerUpdate) return false;
+								updateBlobStoreManager(pksetwcs);
+
 							}
 						} else {
 							if(kony.sync.updateEx(tx, tablename, values, pkwcs)===false){
 								return false;
 							} else {
 								//update blobstore manager ?
-								var blobManagerUpdate = updateBlobStoreManager(pkwcs);
-								if(!blobManagerUpdate) return false;
+								updateBlobStoreManager(pkwcs);
 							}
 						}
 					}
@@ -6490,6 +6577,7 @@ kony.sync.errorCodeChildObjectShouldBeArray = 9015;
 kony.sync.errorCodeNullPrimaryKeyValue = 9016;
 kony.sync.errorCodeInvalidTableName = 9017;
 kony.sync.errorCodeRecordDoNotExist = 9018;
+kony.sync.errorCodeBinaryUploadFailed = 9019;
 
 kony.sync.retryErrors = {};
 
@@ -6624,13 +6712,14 @@ kony.sync.getErrorMessage = function(errorCode,objectName, attributeName) {
 	errorMap[kony.sync.errorCodeInvalidColumnParams] = "Invalid column params ";
 	errorMap[kony.sync.errorCodeDownloadPolicyNotSupported] = "Download policy not supported for "+objectName;
 	errorMap[kony.sync.errorCodeInvalidStateForDownload] = "Blob cannot be downloaded in "+objectName+" state";
-	errorMap[kony.sync.errorCodeBinaryDownloadFailed] = "Download operation failed";
+	errorMap[kony.sync.errorCodeBinaryDownloadFailed] = "Binary Download operation failed ";
 	errorMap[kony.sync.errorCodeParentMappingAttributeNotFound] = "Parent Mapping Attribute not found for given child "+objectName;
 	errorMap[kony.sync.errorCodeChildObjectShouldBeArray] = "Child objects should be of Array type for complex object CUD";
 	errorMap[kony.sync.errorCodeNullPrimaryKeyValue] = "Null value passed for primary key "+objectName;
 	errorMap[kony.sync.errorCodeInvalidTableName] = "Invalid table name sent for DB Operation "+objectName;
 	errorMap[kony.sync.errorCodeRecordDoNotExist] = "Record doesn't exists with given conditions "+objectName;
 	errorMap[kony.sync.errorCodeInvalidMarkForUploadValue] = "MarkforUpload value can not be made true if the object is created with mark for upload as false";
+	errorMap[kony.sync.errorCodeBinaryUploadFailed] = "Binary Upload operation failed ";
 
 	if(errorMap[errorCode]===null){
 		return "Some unknown client error";
@@ -8651,7 +8740,7 @@ kony.sync.getRelationshipsForTable = function(tablename) {
 };
 
 kony.sync.getChildRecords = function(tablename, valuesTable) {
-	sync.log.trace("Entering kony.sync.getChildRecords for table "+tablename+" and values "+JSON.stringify(valuesTable));
+	sync.log.trace("Entering kony.sync.getChildRecords for table "+tablename);
 	var childRecords = [];
 	var relationShips = kony.sync.getRelationshipsForTable(tablename);
 
@@ -9063,7 +9152,7 @@ sync.init = function(on_sync_init_success, on_sync_init_error) {
 		function checkForStaleScopeCallback(){
 			kony.sync.isResetInProgress = false;
 			//before initializing the thread, perform a clean up job to remove stale records.
-			if(!kony.sync.isNullOrUndefined(sync.util) && !kony.sync.isCleanUpJobCompleted) {
+			if(typeof(binary) !== "undefined" && typeof(binary.util) !== "undefined" && !kony.sync.isCleanUpJobCompleted) {
 				sync.log.trace("checkForStaleScopeCallback -> Initializing binary stats");
 				kony.sync.initBinaryStats();
 
@@ -9088,13 +9177,13 @@ sync.init = function(on_sync_init_success, on_sync_init_error) {
 			sync.log.trace("syncInitComplete...");
 			kony.sync.syncInitialized = true;
 			//init the onDemand polling thread
-			if(typeof(sync.util) !== "undefined") {
-				sync.util.binaryThreadInit(
+			if(typeof(binary) !== "undefined" && typeof(binary.util) !== "undefined") {
+				binary.util.binaryThreadInit(
 					kony.sync.blobManager.prepareJobs,
 					kony.sync.blobManager.getPreparedJobs,
 					kony.sync.blobManager.onDemandUniversalSuccessCallback,
 					kony.sync.blobManager.onDemandUniversalErrorCallback);
-				sync.util.createBlobsDir();
+				binary.util.createBlobsDir();
 
 			}
 			//init the binaryNotifier map
@@ -9601,6 +9690,14 @@ kony.sync.checkForUpdate559to560Schema = function(tx){
 	return kony.sync.executeQueriesInTransaction(tx, kony.sync.DDL559to560Update);
 };
 
+/**
+ * Method is used to fetch the records whose binary operation has failed
+ * @param isDownload {boolean} true for download/ false for upload
+ * @param tablename {String} tablename to filter binary records by tablename.
+ * @param columnname {String} column name to filter binary records by binary column.
+ * @param successCallback
+ * @param errorCallback
+ */
 sync.getFailedBinaryRecords = function(isDownload, tablename, columnname, successCallback, errorCallback) {
 	sync.log.trace("Entering kony.sync.single_insert_execute-> main function");
 
@@ -9690,71 +9787,74 @@ sync.getFailedBinaryRecords = function(isDownload, tablename, columnname, succes
 		}
 	}
 
-	var connection = kony.sync.getConnectionOnly(kony.sync.currentScope[kony.sync.scopeDataSource],
-		kony.sync.currentScope[kony.sync.scopeDataSource],errorCallback, "fetch binary failed records..");
+	var dbname = kony.sync.getDBName();
+	var connection = kony.sync.getConnectionOnly(dbname, dbname, errorCallback, "fetch binary failed records..");
 	if(connection !== null){
 		kony.sync.startTransaction(connection, single_transaction_callback, single_transaction_success_callback, single_transaction_failure_callback);
 	}
 };
 
-sync.getStatusForBinary = function(tbname, columnName, wc, successCallback, errorCallback) {
+/**
+ * Method is used to fetch status of the binary records of given table.
+ * @param tbname - name of the table.
+ * @param columnName - name of the binary column
+ * @param pks {JSON} - Primary keys values for the record.
+ * @param successCallback - callback called upon success.
+ * @param errorCallback - callback called upon error.
+ */
+sync.getStatusForBinary = function(tbname, columnName, pks, successCallback, errorCallback) {
 
 	function single_transaction_callback(tx) {
-		//first fetch the pks of the required records using the where clause.
-		var response = [];
+		sync.log.trace("Entering sync.getStatusForBinary -> single_transaction_callback");
+		if(kony.sync.isNullOrUndefined(pks)) {
+			//null pk values are received.
+			var error = kony.sync.getErrorTable(
+				kony.sync.errorCodeInvalidPksGiven,
+				kony.sync.getErrorMessage(kony.sync.errorCodeInvalidPksGiven, pks)
+			);
+			kony.sync.verifyAndCallClosure(errorCallback, error);
+			return;
+		}
+
 		var scopename = kony.sync.scopes.syncTableScopeDic[tbname];
 		var scope = kony.sync.scopes[scopename];
-		var reqColumns = scope.syncTableDic[tbname].Pk_Columns;
+		var pkColumns = scope.syncTableDic[tbname].Pk_Columns;
 
-		var blobRef_column = kony.sync.binaryMetaColumnPrefix + columnName;
-		reqColumns.push(blobRef_column);
+		pks = kony.sync.validatePkTable(pkColumns, pks);
+		var statusResponse = {};
 
-		var query = kony.sync.qb_createQuery();
-		kony.sync.qb_select(query, reqColumns);
-		kony.sync.qb_from(query, tbname);
-		kony.sync.qb_where(query, wc);
-
-		var query_compile = kony.sync.qb_compile(query);
-		var sql = query_compile[0];
-		var params = query_compile[1];
-
-		var result_set = kony.sync.executeSql(tx, sql, params, errorCallback);
-		if(result_set !== null && result_set !== false) {
-			if(result_set.rows.length > 0) {
-				for (var k = 0; k < result_set.rows.length; k++) {
-					var statusResponse = {};
-					var rowItem = kony.db.sqlResultsetRowItem(tx, result_set, k);
-					var blobRef = rowItem[blobRef_column];
-					//delete the  blob ref column from result set. Now row item will have PkColumn values.
-					delete rowItem[blobRef_column];
-
-					statusResponse.primaryKeys = rowItem;
-					if (blobRef === kony.sync.blobRefNotDefined || blobRef === kony.sync.blobRefNotFound) {
-						statusResponse.statusCode = 0;
-						statusResponse.statusMessage = "Binary record not downloaded";
-					} else {
-						//blob ref exists. query the blob store manager.
-						var blobMeta = kony.sync.blobManager.getBlobMetaDetails(tx, blobRef, errorCallback);
-						if (blobMeta !== null && blobMeta !== false) {
-							statusResponse.statusCode = blobMeta[kony.sync.blobManager.state];
-							statusResponse.statusMessage = kony.sync.blobManager.states[statusResponse.statusCode];
-						}
-					}
-					response.push(statusResponse);
+		if(!kony.sync.isNullOrUndefined(pks)) {
+			var blobRef = kony.sync.getBlobRef(tx, tbname, columnName, pks, errorCallback);
+			statusResponse.primaryKeys = pks;
+			if (blobRef === kony.sync.blobRefNotDefined || blobRef === kony.sync.blobRefNotFound) {
+				statusResponse.statusCode = 0;
+				statusResponse.statusMessage = "Binary record not downloaded";
+			} else {
+				//blob ref exists. query the blob store manager.
+				var blobMeta = kony.sync.blobManager.getBlobMetaDetails(tx, blobRef, errorCallback);
+				if (blobMeta !== null && blobMeta !== false) {
+					statusResponse.statusCode = blobMeta[kony.sync.blobManager.state];
+					statusResponse.statusMessage = kony.sync.blobManager.states[statusResponse.statusCode];
 				}
 			}
-			sync.log.trace("single_binary_select_status_execute -> response "+JSON.stringify(response));
-			kony.sync.verifyAndCallClosure(successCallback, response);
+			sync.log.trace("status response for the get status request ", statusResponse);
+			kony.sync.verifyAndCallClosure(successCallback, statusResponse);
+		} else {
+			//error invalid pks.
+			var error = kony.sync.getErrorTable(
+				kony.sync.errorCodeInvalidPksGiven,
+				kony.sync.getErrorMessage(kony.sync.errorCodeInvalidPksGiven, tbname)
+			);
+			kony.sync.verifyAndCallClosure(errorCallback, error);
 		}
 	}
 
 	function single_transaction_success_callback() {
-		sync.log.trace("Entering kony.sync.single_binary_select_status_execute->single_select_binary_transaction_success");
+		sync.log.trace("Entering kony.sync.getStatusForBinary->single_transaction_success_callback");
 	}
 
 	function single_transaction_error_callback() {
-		sync.log.error("Entering kony.sync.single_binary_select_status_execute->single_select_binary_transaction_failed");
-
+		sync.log.error("Entering kony.sync.getStatusForBinary->single_transaction_error_callback");
 	}
 
 	sync.log.trace("Entering kony.sync.single_binary_select_status_execute-> main function");
@@ -9771,8 +9871,8 @@ sync.getStatusForBinary = function(tbname, columnName, wc, successCallback, erro
 		var downloadPolicy = kony.sync.getDownloadPolicy(tbname, columnName);
 		sync.log.trace("download policy for the column "+tbname+"."+columnName+ " is "+downloadPolicy);
 		if(downloadPolicy !== kony.sync.notSupported) {
-			var connection = kony.sync.getConnectionOnly(kony.sync.currentScope[kony.sync.scopeDataSource],
-				kony.sync.currentScope[kony.sync.scopeDataSource], errorCallback, "fetch status for binary records..");
+			var dbname = kony.sync.getDBName();
+			var connection = kony.sync.getConnectionOnly(dbname, dbname, errorCallback, "fetch status for binary records..");
 			if(connection !== null){
 				kony.sync.startTransaction(connection, single_transaction_callback, single_transaction_success_callback, single_transaction_error_callback);
 			}
@@ -9785,6 +9885,37 @@ sync.getStatusForBinary = function(tbname, columnName, wc, successCallback, erro
 		}
 	}
 };
+
+/**
+ * Method is used to fetch Base64 string for a given record.
+ * @param tbname {String} - tablename
+ * @param columnName {String} - name of the binary column
+ * @param pks {JSON} - Primary keys values for the record.
+ * @param config {JSON} (optional) - config properties for the binary download. includes {"forceDownload": true/false}
+ * @param successCallback
+ * @param errorCallback
+ */
+sync.getBinaryBase64 = function(tbname, columnName, pks, config, successCallback, errorCallback) {
+	sync.log.trace("Entering sync.getBinaryBase64....");
+	var dbname = kony.sync.getDBName();
+	kony.sync.single_binary_select_base64_execute(dbname, tbname, columnName, pks, config, successCallback, errorCallback);
+};
+
+/**
+ * Method is used to fetch binary file for a given record
+ * @param tbname {String} - tablename
+ * @param columnName {String} - name of the binary column
+ * @param pks {JSON} - Primary keys values for the record.
+ * @param config {JSON} (optional) - config properties for the binary download. includes {"forceDownload": true/false}
+ * @param successCallback
+ * @param errorCallback
+ */
+sync.getBinaryFilepath = function(tbname, columnName, pks, config, successCallback, errorCallback) {
+	sync.log.trace("Entering sync.getBinaryFilepath....");
+	var dbname = kony.sync.getDBName();
+	kony.sync.single_binary_select_file_execute(dbname, tbname, columnName, pks, config, successCallback, errorCallback);
+};
+
 //  **************** End KonySyncInit.js*******************
 
 
@@ -11721,7 +11852,7 @@ kony.sync.single_execute_sql = function (dsname, sqlstatement, params, result_su
 		sync.log.trace("Entering single_execute_sql_transaction");
 		var resultset = kony.sync.executeSql(tx, sqlstatement, params, result_errorcallback);
 		if (resultset !== false) {
-			if (resultset.rows.length > 0) {
+			if ( !(kony.sync.isNullOrUndefined(resultset.rows))  && resultset.rows.length > 0) {
 				single_execute_sql_result = kony.db.sqlResultsetRowItem(tx, resultset, 0);
 			}
 		} else {
@@ -11949,9 +12080,7 @@ kony.sync.single_binary_select_inline_execute = function(dsname, tbname, columnN
 				kony.sync.getErrorMessage(kony.sync.errorCodeInvalidPksGiven, tbname)
 			);
 			kony.sync.verifyAndCallClosure(errorCallback, error);
-
 		}
-
 	}
 
 	if(kony.sync.isBinaryColumn(tbname, columnName) !== -1) {
@@ -12811,6 +12940,13 @@ kony.sync.retryServiceCall = function(url, result, infoObj, retryCount, callback
 	function downloadNetworkCallbackStatus(status, callResult, info){
 		if(status === 400){
 			sync.log.trace("Entering kony.sync.retryServiceCall->downloadNetworkCallbackStatus");
+
+			//fallback when opstatus < 0
+			if(result.opstatus < 0){
+				sync.log.info("Got result.opstatus:" + result.opstatus + " and result.errcode:" + result.errcode + "setting errcode to opstatus");
+				result.opstatus = result.errcode;
+			}
+
 			if(retryCount > 0 && kony.sync.checkForRetryErrorCodes(callResult.opstatus)){
 				retryCount--;
 				kony.sync.retryServiceCall(url, callResult, info, retryCount, callback, params);
@@ -13520,6 +13656,13 @@ kony.sync.konyDownloadChanges = function(serverblob, scope, downloadNetworkCallb
 	function downloadNetworkCallbackStatus(status, result) {
 		if (status === 400) {
 			sync.log.trace("Entering kony.sync.konyDownloadChanges->downloadNetworkCallbackStatus");
+
+			//fallback when opstatus < 0
+			if(result.opstatus < 0){
+				sync.log.info("Got result.opstatus:" + result.opstatus + " and result.errcode:" + result.errcode + "setting errcode to opstatus");
+				result.opstatus = result.errcode;
+			}
+
 			if (kony.sync.eligibleForRetry(result.opstatus, retries)) {
 				retries--;
 				kony.sync.retryServiceCall(kony.sync.getDownloadURL(), result, null, retries, checkForChunking, params);
@@ -13646,6 +13789,13 @@ kony.sync.konyUploadChanges = function(changes, uploadNetworkcallback, lastBatch
 	function uploadNetworkCallbackStatus(status, result, info) {
 		if (status === 400) {
 			sync.log.trace("Entering kony.sync.konyUploadChanges->uploadNetworkCallbackStatus");
+
+			//fallback when opstatus < 0
+			if(result.opstatus < 0){
+				sync.log.info("Got result.opstatus:" + result.opstatus + " and result.errcode:" + result.errcode + "setting errcode to opstatus");
+				result.opstatus = result.errcode;
+			}
+
 			if (kony.sync.eligibleForRetry(result.opstatus, retries)) {
 				retries--;
 				kony.sync.retryServiceCall(kony.sync.getUploadURL(), result, info, retries, retryCallback, params);
@@ -13781,6 +13931,13 @@ kony.sync.konyRegisterDevice = function(registerDeviceCallback) {
 	function registerDeviceCallbackStatus(status, result) {
 		if (status === 400) {
 			sync.log.trace("Entering kony.sync.konyRegisterDevice->registerDeviceCallbackStatus");
+
+			//fallback when opstatus < 0
+			if(result.opstatus < 0){
+				sync.log.info("Got result.opstatus:" + result.opstatus + " and result.errcode:" + result.errcode + "setting errcode to opstatus");
+				result.opstatus = result.errcode;
+			}
+
 			if (kony.sync.eligibleForRetry(result.opstatus, retries)) {
 				retries--;
 				kony.sync.retryServiceCall(kony.sync.getRegisterDeviceURL(), result, null, retries, retryCallback, params);
@@ -13829,6 +13986,13 @@ kony.sync.callSchemaUpgradeService = function(schemaUpgradeCallback, scriptsRequ
 	function schemaUpgradeServiceStatus(status, result) {
 		if (status === 400) {
 			sync.log.trace("Entering kony.sync.callSchemaUpgradeService->schemaUpgradeServiceStatus");
+
+			//fallback when opstatus < 0
+			if(result.opstatus < 0){
+				sync.log.info("Got result.opstatus:" + result.opstatus + " and result.errcode:" + result.errcode + "setting errcode to opstatus");
+				result.opstatus = result.errcode;
+			}
+
 			if (kony.sync.eligibleForRetry(result.opstatus, retries)) {
 				retries--;
 				kony.sync.retryServiceCall(kony.sync.getSchemaUpgradeURL(), result, null, retries, retryCallback, params);
@@ -14747,10 +14911,20 @@ kony.sync.syncUploadChangesForBatch = function(rowItem, previousUpload, limit) {
 			return;
 		}
 		else if(kony.sync.isNullOrUndefined(otaServerChanges.d)){
+			if(kony.sync.isSyncStopped){
+				sync.log.debug("sync stopped in kony.sync.syncUploadChangesForBatch->uploadAllTransactionSuccess");
+				kony.sync.stopSyncSession();
+				return;
+			}
 			kony.sync.onUploadCompletion(true, kony.sync.getServerError(otaServerChanges.d));
 			return;
 		}
 		function addLastUploadRequestCallback(){
+			if(kony.sync.isSyncStopped){
+				sync.log.debug("sync stopped in kony.sync.syncUploadChangesForBatch->addLastUploadRequestCallback");
+				kony.sync.stopSyncSession();
+				return;
+			}
 			sync.log.trace("Entering kony.sync.syncUploadChangesForBatch->addLastUploadRequestCallback");
 			kony.sync.onUploadCompletion(true, kony.sync.getServerError(otaServerChanges.d));
 		}
@@ -14770,6 +14944,11 @@ kony.sync.syncUploadChangesForBatch = function(rowItem, previousUpload, limit) {
 		}
 
 		function deleteLastUploadRequestCallback(){
+			if(kony.sync.isSyncStopped){
+				sync.log.debug("sync stopped in kony.sync.syncUploadChangesForBatch->deleteLastUploadRequestCallback");
+				kony.sync.stopSyncSession();
+				return;
+			}
 			kony.sync.onUploadCompletion(true,kony.sync.getServerError(otaServerChanges.d));
 		}
 
@@ -14789,6 +14968,11 @@ kony.sync.syncUploadChangesForBatch = function(rowItem, previousUpload, limit) {
 		}
 
 		function setSeqNoCallback(){
+			if(kony.sync.isSyncStopped){
+				sync.log.debug("sync stopped in uploadAllTransactionSuccess -> setSeqNoCallback");
+				kony.sync.stopSyncSession();
+				return;
+			}
 			sync.log.trace("Entering kony.sync.syncUploadChangesForBatch->setSeqNoCallback");
 			kony.sync.uploadcontextMap[kony.sync.numberOfRowsUploaded] = kony.sync.syncTotalInserts + kony.sync.syncTotalUpdates + kony.sync.syncTotalDeletes;
 			kony.sync.uploadcontextMap[kony.sync.numberOfRowsInserted] = kony.sync.syncTotalInserts;
@@ -15550,7 +15734,7 @@ kony.sync.getBatchChanges = function(tx, scope, offset, limit, changeset, lastSe
 					if(blobMeta[kony.sync.blobManager.state] === kony.sync.blobManager.NO_OPERATION &&
 						blobMeta[kony.sync.blobManager.status] === 100) {
 						//file exists. upload.
-						var base64String = sync.util.getBase64FromFiles([blobMeta[kony.sync.blobManager.localPath]]);
+						var base64String = binary.util.getBase64FromFiles([blobMeta[kony.sync.blobManager.localPath]]);
 						if(base64String[0].length > 0){
 							row[binaryColumnName] = base64String[0];
 						} else {
