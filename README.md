@@ -37,5 +37,5 @@ To build and run this app you will need to download and install [Kony Visualizer
  * DesktopWeb
  * Kiosk
  
-**Supported Kony Visualizer Version:** 7.0
+**Supported Kony Visualizer Enterprise Version:** 7.0
 
