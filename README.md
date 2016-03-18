@@ -1,5 +1,10 @@
-To get started, first click the Download ZIP button to the right to download this tutorial's assets.
+To Run This App :
 
+1. Download the project zip file.
+2. Unzip the project to any folder
+3. Launch Kony Visualizer Enterprise version 7.0.
+4. Import the project by selecting the HelloWorld folder.
+5. Build and Run the app.
 
 HelloWorld Application
 =======================
