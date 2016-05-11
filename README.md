@@ -40,7 +40,7 @@ To build and run this app you will need to download and install [Kony Visualizer
 #Screenshot
 ![Kony's HelloWorld app running in an Android emulator](https://raw.github.com/kony-solutions/screenshots/master/HelloWorld/Mobile/Android/1.png "Kony's HelloWorld app running in an Android emulator")
 
-# Supported platforms:
+# Supported platforms for Kony Visualizer Enterprise:
 **Mobile**
  * Android
  * iPhone
@@ -61,6 +61,19 @@ To build and run this app you will need to download and install [Kony Visualizer
 **Desktop**
  * DesktopWeb
  * Kiosk
+  
+ 
+#Supported platforms for Kony visualizer:
+**Mobile**
+ * Android
+ * iPhone
+ 
+
+**Tablet**
+**Tablet** 
+ * Android
+ * iPad
+
  
 
 
