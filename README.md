@@ -43,8 +43,13 @@ This is the sample app from Kony's "FastTrack 0: Getting Started" tutorial. Its 
 To build and run this app you will need to download and install [Kony Visualizer](http://www.kony.com/products/development). You can register and download the trial version from www.kony.com.
 
 
-#Screenshot
-![Kony's HelloWorld app running in an Android emulator](https://raw.github.com/kony-solutions/screenshots/master/HelloWorld/Mobile/Android/1.png "Kony's HelloWorld app running in an Android emulator")
+#Screenshot for Kony Visualizer Enterprise:
+
+![Kony's HelloWorld app running in an Android emulator](https://raw.github.com/kony-solutions/screenshots/master/HelloWorld/Mobile/Android/1.png )
+
+#Screenshot for Kony Visualizer:
+
+![Kony's HelloWorld app running in an Android emulator](https://cloud.githubusercontent.com/assets/4717150/15177384/527eb290-178d-11e6-964f-dd4ad1bf3c97.png) 
 
 # Supported platforms for Kony Visualizer Enterprise:
 **Mobile**
