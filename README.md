@@ -22,11 +22,13 @@ To Run This App in Kony Visualizer :
 6. Launch in Functional Preview through Local account or Cloud.
 
 Local :
+
 1. Enter the IP address.
 2. Enter the port value.
 3. Enter the Application name.
 
 Cloud :
+
 1. Publish App Preview.
 2. Select the channels to publish.
 3. Enter the generated code in visualizer App Preview in your Device.
