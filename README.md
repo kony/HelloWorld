@@ -1,3 +1,9 @@
+HelloWorld Application
+=======================
+
+This simple HelloWorld app is used to insure that your [Kony Development Cloud](http://www.kony.com/products/development) setup is operating property.
+
+
 To Run This App in Kony visualizer Enterprise  :
  
 1. Download the project zip file.
@@ -23,9 +29,6 @@ Cloud:a.Publish App Preview.
 
 
 
-HelloWorld Application
-=======================
-This simple HelloWorld app is used to insure that your [Kony Development Cloud](http://www.kony.com/products/development) setup is operating property.
 
 
 # Purpose
@@ -59,5 +62,5 @@ To build and run this app you will need to download and install [Kony Visualizer
  * DesktopWeb
  * Kiosk
  
-**Supported Kony Visualizer Enterprise Version:** 7.0
+
 
