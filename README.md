@@ -20,11 +20,17 @@ To Run This App in Kony Visualizer :
 4. Import the project by selecting the HelloWorld folder.
 5. Run the app.
 6. Launch in Functional Preview through Local account or Cloud.
+
 Local: a.Enter the IP address.
+
        b.Enter the port value.
-	   c.Enter the Application name.
-Cloud:a.Publish App Preview.
+       
+       c.Enter the Application name.
+       
+Cloud: a.Publish App Preview.
+
       b.Select the channels to publish.
+      
       c.Enter the generated code in visualizer App Preview in your Device.	 
 
 
