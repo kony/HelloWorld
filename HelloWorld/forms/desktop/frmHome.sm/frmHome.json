@@ -34,8 +34,6 @@
     "device": "desktopweb",
     "displayorientation": 1,
     "enabledforidletimeout": false,
-    "footer": "frmHome_footer",
-    "header": "frmHome_header",
     "id": "frmHome",
     "info": null,
     "initdone": false,

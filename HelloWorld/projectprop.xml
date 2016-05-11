@@ -298,7 +298,7 @@
     <attributes name="appnamekey" value="HelloWorld"/>
     <attributes name="log_level" value="ERROR"/>
     <attributes name="tileUpdateRecurrenceKey" value=""/>
-    <attributes name="andtargetsdkkey" value="4.0"/>
+    <attributes name="andtargetsdkkey" value="5.0"/>
     <attributes name="deeplinkkey" value="None"/>
     <attributes name="READ_LOGS" value="false"/>
     <attributes name="apmgestureswipe" value="false"/>
@@ -409,7 +409,7 @@
     <attributes name="tcandroid240basefontsize" value="12"/>
     <attributes name="win8versionbuildkey" value="0"/>
     <attributes name="CHANGE_COMPONENT_ENABLED_STATE" value="false"/>
-    <attributes name="windowskioskguid" value="41a57974-f574-4ec6-a426-b07fcb6fe405"/>
+    <attributes name="windowskioskguid" value=""/>
     <attributes name="marginsincludedinwidgetcontainerweight" value="true"/>
     <attributes name="WP8_ID_CAP_MEDIALIB_AUDIO" value="true"/>
     <attributes name="access_pimdomain_messages" value="false"/>

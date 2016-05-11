@@ -6,6 +6,13 @@
     "watchos_notificationcentericon_38": "",
     "createdgaversion": "6.9.0",
     "wap_android640_fontsize": "12",
+    "prototype": {
+        "createdOn": "2016-05-02T11:54:21.002Z",
+        "resourceId": "5cb75d9d-80b8-45b5-a154-e0251f5024a3",
+        "createdBy": "zareena sofia",
+        "createdById": "5d2fdb09-4e6e-476f-88d8-6061e7213e50",
+        "shareGuid": "IEBTZ"
+    },
     "winmobileguidkey": "",
     "desktopstartupformkey": "frmHome",
     "desktopwebbasefontsize": "12",
@@ -13,19 +20,20 @@
     "wap_spaandroidtab_fontsize": "12",
     "apppackagekey": "",
     "startupformkey": "frmHome",
+    "accountCloudGuid": "047da162-d5b8-4088-af89-0f280b71528e",
     "wap_bb440_fontsize": "12",
     "wap_spaandroidtabldpi_fontsize": "12",
     "isA11yConfigEnabled": false,
     "wap_android480_fontsize": "12",
     "wap_spawindowstab_fontsize": "12",
-    "defaulttheme": "defaultTheme",
     "wap_winphone320_fontsize": "12",
+    "defaulttheme": "defaultTheme",
     "watchos_longlooknotificationicon_38": "",
     "watchos_notificationcentericon_42": "",
+    "projectCloudGuid": "e030e260-9efc-4c8c-8880-3b358997d428",
     "enableactionbar": false,
     "appmenu": {
         "focusSkin": null,
-        "osVersion": "iOS7",
         "tablet": {
             "data": [
                 {
@@ -34,13 +42,13 @@
                         "default": "option1.png"
                     },
                     "title": "Item 1",
+                    "android": {
+                        "showAsFlag": 0
+                    },
+                    "kuid": "045bf1b14dba4326a9d3f8b219ecf036",
                     "windows8": {
                         "position": "BOTTOM_LEFT",
                         "appBarButtonStyle": "No Style"
-                    },
-                    "kuid": "045bf1b14dba4326a9d3f8b219ecf036",
-                    "android": {
-                        "showAsFlag": 0
                     }
                 },
                 {
@@ -49,13 +57,13 @@
                         "default": "option2.png"
                     },
                     "title": "Item 2",
+                    "android": {
+                        "showAsFlag": 0
+                    },
+                    "kuid": "fe8deb6d381d4334a31e10d7d8eeec90",
                     "windows8": {
                         "position": "BOTTOM_LEFT",
                         "appBarButtonStyle": "No Style"
-                    },
-                    "kuid": "fe8deb6d381d4334a31e10d7d8eeec90",
-                    "android": {
-                        "showAsFlag": 0
                     }
                 },
                 {
@@ -64,13 +72,13 @@
                         "default": "option3.png"
                     },
                     "title": "Item 3",
+                    "android": {
+                        "showAsFlag": 0
+                    },
+                    "kuid": "7ead0211d7704decb6c95464aa88ae8f",
                     "windows8": {
                         "position": "BOTTOM_LEFT",
                         "appBarButtonStyle": "No Style"
-                    },
-                    "kuid": "7ead0211d7704decb6c95464aa88ae8f",
-                    "android": {
-                        "showAsFlag": 0
                     }
                 },
                 {
@@ -79,17 +87,18 @@
                         "default": "option4.png"
                     },
                     "title": "Item 4",
+                    "android": {
+                        "showAsFlag": 0
+                    },
+                    "kuid": "2acc1933e150408691f38b495b61cb01",
                     "windows8": {
                         "position": "BOTTOM_LEFT",
                         "appBarButtonStyle": "No Style"
-                    },
-                    "kuid": "2acc1933e150408691f38b495b61cb01",
-                    "android": {
-                        "showAsFlag": 0
                     }
                 }
             ]
         },
+        "osVersion": "iOS7",
         "wType": "Appmenu",
         "focusskin": null,
         "osPlatform": "",
@@ -138,10 +147,10 @@
                         "default": "option1.png"
                     },
                     "title": "Item 1",
+                    "kuid": "059cc8541e2b4564aa5b0d1ca82191ae",
                     "android": {
                         "showAsFlag": 0
-                    },
-                    "kuid": "059cc8541e2b4564aa5b0d1ca82191ae"
+                    }
                 },
                 {
                     "id": "appmenuitemid2",
@@ -149,10 +158,10 @@
                         "default": "option2.png"
                     },
                     "title": "Item 2",
+                    "kuid": "a0c0717849874442a1682275bb7186b3",
                     "android": {
                         "showAsFlag": 0
-                    },
-                    "kuid": "a0c0717849874442a1682275bb7186b3"
+                    }
                 },
                 {
                     "id": "appmenuitemid3",
@@ -160,10 +169,10 @@
                         "default": "option3.png"
                     },
                     "title": "Item 3",
+                    "kuid": "112567150d6146d3a674ec200456dd2e",
                     "android": {
                         "showAsFlag": 0
-                    },
-                    "kuid": "112567150d6146d3a674ec200456dd2e"
+                    }
                 },
                 {
                     "id": "appmenuitemid4",
@@ -171,10 +180,10 @@
                         "default": "option4.png"
                     },
                     "title": "Item 4",
+                    "kuid": "d31524bc309b4a6bbd31f55052972cdd",
                     "android": {
                         "showAsFlag": 0
-                    },
-                    "kuid": "d31524bc309b4a6bbd31f55052972cdd"
+                    }
                 }
             ]
         }
@@ -203,21 +212,28 @@
     "currentgaversion": "6.9.0",
     "mwhttpsportkey": "",
     "vendornamekey": "KonyLabs",
-    "konyVizVersion": "2.9.0",
     "mfappguid": {
         "f30ee099-dd0b-41f8-9da6-5eb2b11ec299": "59ef2591-e51a-441c-8e72-a7c5503b8d70",
         "1cbf2a94-7272-46f2-a277-bb175e683b75": "669bd8a9-e2ab-4f8c-a029-d1bb46451a7c"
     },
+    "konyVizVersion": "2.9.0",
     "appnamekey": "HelloWorld",
     "APPLICATION_THEME": "default",
-    "wap_spaipad_fontsize": "12",
     "wap_android440_fontsize": "12",
+    "wap_spaipad_fontsize": "12",
     "wap_spaandroidtabhdpi_fontsize": "12",
-    "wap_bb360_fontsize": "12",
     "nativeContainerProperties": {
         "isModified": false,
-        "isEnableJSContainer": false,
+        "isEnableJSContaineriOS": false,
         "isEnableJSContainerAndroid": false,
-        "isEnableJSContaineriOS": false
-    }
+        "isEnableJSContainer": false
+    },
+    "wap_bb360_fontsize": "12",
+    "wap_spaandroidtabxhdpi_fontsize": "18",
+    "ipadlandscapemodekey": "portrait",
+    "supportedorientations": [
+        "portrait"
+    ],
+    "desktopwebwidthoption": "percentage",
+    "desktopwebaligenmentoption": "Left"
 }
