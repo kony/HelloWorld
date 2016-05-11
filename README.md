@@ -21,17 +21,19 @@ To Run This App in Kony Visualizer :
 5. Run the app.
 6. Launch in Functional Preview through Local account or Cloud.
 
-Local: a.Enter the IP address.
-
-       b.Enter the port value.
+Local: * Enter the IP address.
+       * Enter the port value.
+       * Enter the Application name.
        
-       c.Enter the Application name.
-       
-Cloud: a.Publish App Preview.
-
-      b.Select the channels to publish.
+Cloud: 1. Publish App Preview.
       
-      c.Enter the generated code in visualizer App Preview in your Device.	 
+       2. Select the channels to publish.
+       3. Enter the generated code in visualizer App Preview in your Device.
+       
+Cloud: 1. asdcbh
+2.
+3. 
+
 
 
 
