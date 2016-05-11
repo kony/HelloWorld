@@ -4,7 +4,7 @@ HelloWorld Application
 This simple HelloWorld app is used to insure that your [Kony Development Cloud](http://www.kony.com/products/development) setup is operating property.
 
 
-To Run This App in Kony visualizer Enterprise  :
+**To Run This App in Kony visualizer Enterprise:**
  
 1. Download the project zip file.
 2. Unzip the project to any folder
@@ -12,7 +12,7 @@ To Run This App in Kony visualizer Enterprise  :
 4. Import the project by selecting the HelloWorld folder.
 5. Build and Run the app.
 
-To Run This App in Kony Visualizer :
+**To Run This App in Kony Visualizer:**
 
 1. Download the project zip file.
 2. Unzip the project to any folder.
