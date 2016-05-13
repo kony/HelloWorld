@@ -374,7 +374,7 @@
     <attributes name="access_pimdomain_contacts" value="false"/>
     <attributes name="apmformExit" value="false"/>
     <attributes name="CHANGE_WIFI_MULTICAST_STATE" value="false"/>
-    <attributes name="cloud_url" value="https://mobilefabric-demo.konycloud.com"/>
+    <attributes name="cloud_url" value="https://sampletestcloud.qa-konycloud.com"/>
     <attributes name="certs_key_store_pwd" value="kds/0eUc+i3BqFqSkpCk4g=="/>
     <attributes name="CALL_PRIVILEGED" value="false"/>
     <attributes name="SUBSCRIBED_FEEDS_READ" value="false"/>
@@ -462,7 +462,7 @@
     <attributes name="apmerrorunhandledexception" value="true"/>
     <attributes name="tcandroid320basefontsize" value="12"/>
     <attributes name="BROADCAST_SMS" value="false"/>
-    <attributes name="cloud_env_name" value="Kony Cloud MobileFabric-MobileFabric"/>
+    <attributes name="cloud_env_name" value="Samples-ACME Prod"/>
     <attributes name="ID_REQ_REARCAMERA" value="false"/>
     <attributes name="tcandroid360basefontsize" value="12"/>
     <attributes name="win8displaynamekey" value="HelloWorld"/>

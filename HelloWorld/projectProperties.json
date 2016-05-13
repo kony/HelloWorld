@@ -2,6 +2,9 @@
     "createdVizVersion": "2.9.0",
     "watchos_longlooknotificationicon_42": "",
     "wap_android240_fontsize": "12",
+    "supportedorientations": [
+        "portrait"
+    ],
     "mwaddrkey": "",
     "watchos_notificationcentericon_38": "",
     "createdgaversion": "6.9.0",
@@ -25,9 +28,11 @@
     "wap_spaandroidtabldpi_fontsize": "12",
     "isA11yConfigEnabled": false,
     "wap_android480_fontsize": "12",
+    "desktopwebwidthoption": "percentage",
     "wap_spawindowstab_fontsize": "12",
-    "wap_winphone320_fontsize": "12",
     "defaulttheme": "defaultTheme",
+    "wap_winphone320_fontsize": "12",
+    "ipadlandscapemodekey": "portrait",
     "watchos_longlooknotificationicon_38": "",
     "watchos_notificationcentericon_42": "",
     "projectCloudGuid": "e030e260-9efc-4c8c-8880-3b358997d428",
@@ -189,11 +194,13 @@
         }
     },
     "wap_android360_fontsize": "12",
+    "desktopwebaligenmentoption": "Left",
     "project.type": "js",
     "appversionkey": "1.0.0",
     "mwportkey": "",
     "wap_bb400_fontsize": "12",
     "isNewAppWithRespectToAndroidPackageName": "",
+    "wap_spaandroidtabxhdpi_fontsize": "18",
     "build": "debug",
     "wap_android320_fontsize": "12",
     "statusBarHidden": "false",
@@ -203,8 +210,8 @@
     "wap_spaandroidtabmdpi_fontsize": "12",
     "wap_bb320_fontsize": "12",
     "project_version": "sprint22",
-    "wap_android400_fontsize": "12",
     "appaddrkey": "",
+    "wap_android400_fontsize": "12",
     "wap_ip_fontsize": "12",
     "tabletstartupformkey": "frmHome",
     "watchos_shortlooknotificationicon_38": "",
@@ -223,17 +230,10 @@
     "wap_spaipad_fontsize": "12",
     "wap_spaandroidtabhdpi_fontsize": "12",
     "nativeContainerProperties": {
-        "isModified": false,
-        "isEnableJSContaineriOS": false,
+        "isModified": true,
+        "isEnableJSContainer": false,
         "isEnableJSContainerAndroid": false,
-        "isEnableJSContainer": false
+        "isEnableJSContaineriOS": false
     },
-    "wap_bb360_fontsize": "12",
-    "wap_spaandroidtabxhdpi_fontsize": "18",
-    "ipadlandscapemodekey": "portrait",
-    "supportedorientations": [
-        "portrait"
-    ],
-    "desktopwebwidthoption": "percentage",
-    "desktopwebaligenmentoption": "Left"
+    "wap_bb360_fontsize": "12"
 }
