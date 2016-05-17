@@ -35,7 +35,7 @@
     },
     "allboxes": [],
     "android": {
-        "render": false
+        "render": true
     },
     "autogrowmode": 0,
     "canUpdateUI": true,

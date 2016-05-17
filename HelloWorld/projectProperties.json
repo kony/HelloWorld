@@ -2,20 +2,10 @@
     "createdVizVersion": "2.9.0",
     "watchos_longlooknotificationicon_42": "",
     "wap_android240_fontsize": "12",
-    "supportedorientations": [
-        "portrait"
-    ],
     "mwaddrkey": "",
     "watchos_notificationcentericon_38": "",
     "createdgaversion": "6.9.0",
     "wap_android640_fontsize": "12",
-    "prototype": {
-        "createdOn": "2016-05-02T11:54:21.002Z",
-        "resourceId": "5cb75d9d-80b8-45b5-a154-e0251f5024a3",
-        "createdBy": "zareena sofia",
-        "createdById": "5d2fdb09-4e6e-476f-88d8-6061e7213e50",
-        "shareGuid": "IEBTZ"
-    },
     "winmobileguidkey": "",
     "desktopstartupformkey": "frmHome",
     "desktopwebbasefontsize": "12",
@@ -23,19 +13,15 @@
     "wap_spaandroidtab_fontsize": "12",
     "apppackagekey": "",
     "startupformkey": "frmHome",
-    "accountCloudGuid": "047da162-d5b8-4088-af89-0f280b71528e",
     "wap_bb440_fontsize": "12",
     "wap_spaandroidtabldpi_fontsize": "12",
     "isA11yConfigEnabled": false,
     "wap_android480_fontsize": "12",
-    "desktopwebwidthoption": "percentage",
     "wap_spawindowstab_fontsize": "12",
-    "defaulttheme": "defaultTheme",
     "wap_winphone320_fontsize": "12",
-    "ipadlandscapemodekey": "portrait",
+    "defaulttheme": "defaultTheme",
     "watchos_longlooknotificationicon_38": "",
     "watchos_notificationcentericon_42": "",
-    "projectCloudGuid": "e030e260-9efc-4c8c-8880-3b358997d428",
     "enableactionbar": false,
     "appmenu": {
         "focusSkin": null,
@@ -194,13 +180,11 @@
         }
     },
     "wap_android360_fontsize": "12",
-    "desktopwebaligenmentoption": "Left",
     "project.type": "js",
     "appversionkey": "1.0.0",
     "mwportkey": "",
     "wap_bb400_fontsize": "12",
     "isNewAppWithRespectToAndroidPackageName": "",
-    "wap_spaandroidtabxhdpi_fontsize": "18",
     "build": "debug",
     "wap_android320_fontsize": "12",
     "statusBarHidden": "false",
@@ -210,8 +194,8 @@
     "wap_spaandroidtabmdpi_fontsize": "12",
     "wap_bb320_fontsize": "12",
     "project_version": "sprint22",
-    "appaddrkey": "",
     "wap_android400_fontsize": "12",
+    "appaddrkey": "",
     "wap_ip_fontsize": "12",
     "tabletstartupformkey": "frmHome",
     "watchos_shortlooknotificationicon_38": "",
@@ -219,22 +203,11 @@
     "currentgaversion": "6.9.0",
     "mwhttpsportkey": "",
     "vendornamekey": "KonyLabs",
-    "mfappguid": {
-        "f30ee099-dd0b-41f8-9da6-5eb2b11ec299": "59ef2591-e51a-441c-8e72-a7c5503b8d70",
-        "1cbf2a94-7272-46f2-a277-bb175e683b75": "669bd8a9-e2ab-4f8c-a029-d1bb46451a7c"
-    },
     "konyVizVersion": "2.9.0",
     "appnamekey": "HelloWorld",
     "APPLICATION_THEME": "default",
     "wap_android440_fontsize": "12",
     "wap_spaipad_fontsize": "12",
     "wap_spaandroidtabhdpi_fontsize": "12",
-    "nativeContainerProperties": {
-        "isModified": true,
-        "isEnableJSContainer": false,
-        "isEnableJSContainerAndroid": false,
-        "isEnableJSContaineriOS": false
-    },
-    "wap_bb360_fontsize": "12",
-    "export.type": "visualizer"
+    "wap_bb360_fontsize": "12"
 }

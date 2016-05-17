@@ -1,5 +1,46 @@
 function addWidgetsfrmHome() {
     frmHome.setDefaultUnit(kony.flex.DP);
+    var FlexContainer0239525d7b6d54b = new kony.ui.FlexContainer({
+        "autogrowMode": kony.flex.AUTOGROW_NONE,
+        "clipBounds": true,
+        "height": "8%",
+        "id": "FlexContainer0239525d7b6d54b",
+        "isVisible": true,
+        "layoutType": kony.flex.FREE_FORM,
+        "left": "0dp",
+        "skin": "slFbox",
+        "top": "0dp",
+        "width": "100%"
+    }, {}, {});
+    FlexContainer0239525d7b6d54b.setDefaultUnit(kony.flex.DP);
+    var Label005519a95bde348 = new kony.ui.Label({
+        "height": "100%",
+        "id": "Label005519a95bde348",
+        "isVisible": true,
+        "left": "0dp",
+        "skin": "CopyslLabel0a56f874d63754e",
+        "text": "Home",
+        "textStyle": {
+            "letterSpacing": 0,
+            "strikeThrough": false
+        },
+        "top": "0dp",
+        "width": "100%"
+    }, {
+        "containerWeight": 100,
+        "contentAlignment": constants.CONTENT_ALIGN_CENTER,
+        "hExpand": true,
+        "margin": [1, 1, 1, 1],
+        "marginInPixel": false,
+        "padding": [0, 0, 0, 0],
+        "paddingInPixel": false,
+        "vExpand": false,
+        "widgetAlignment": constants.WIDGET_ALIGN_CENTER
+    }, {
+        "textCopyable": false
+    });
+    FlexContainer0239525d7b6d54b.add(
+    Label005519a95bde348);
     var Image0fa5d961b98ff4f = new kony.ui.Image2({
         "height": "50%",
         "id": "Image0fa5d961b98ff4f",
@@ -11,9 +52,13 @@ function addWidgetsfrmHome() {
         "width": "100%",
         "zIndex": 1
     }, {
+        "containerWeight": 100,
         "imageScaleMode": constants.IMAGE_SCALE_MODE_MAINTAIN_ASPECT_RATIO,
+        "margin": [0, 0, 0, 0],
+        "marginInPixel": false,
         "padding": [0, 0, 0, 0],
-        "paddingInPixel": false
+        "paddingInPixel": false,
+        "widgetAlignment": constants.WIDGET_ALIGN_CENTER
     }, {});
     var FlexContainer06ad4a7b0f47045 = new kony.ui.FlexContainer({
         "autogrowMode": kony.flex.AUTOGROW_NONE,
@@ -35,22 +80,28 @@ function addWidgetsfrmHome() {
         "id": "Button0d69ad14065aa41",
         "isVisible": true,
         "left": "5%",
-        "onClick": AS_Button_2d27c13527d84113b42a5914aeb9d2d3,
+        "onClick": AS_Button_ad4740abd56a41cabaa83b6d64dad03e,
         "skin": "CopyslButtonGlossBlue003f32005c39646",
         "text": "Click me",
         "top": "0dp",
         "width": "90%",
         "zIndex": 1
     }, {
+        "containerWeight": 100,
         "contentAlignment": constants.CONTENT_ALIGN_CENTER,
         "displayText": true,
+        "hExpand": true,
+        "margin": [6, 6, 6, 6],
+        "marginInPixel": false,
         "padding": [0, 0, 0, 0],
-        "paddingInPixel": false
+        "paddingInPixel": false,
+        "vExpand": false,
+        "widgetAlignment": constants.WIDGET_ALIGN_CENTER
     }, {});
     FlexContainer06ad4a7b0f47045.add(
     Button0d69ad14065aa41);
     frmHome.add(
-    Image0fa5d961b98ff4f, FlexContainer06ad4a7b0f47045);
+    FlexContainer0239525d7b6d54b, Image0fa5d961b98ff4f, FlexContainer06ad4a7b0f47045);
 };
 
 function frmHomeGlobals() {
@@ -76,7 +127,4 @@ function frmHomeGlobals() {
         "titleBarSkin": "CopyslTitleBar0bd832d1144764f",
         "windowSoftInputMode": constants.FORM_ADJUST_RESIZE
     });
-    frmHome.info = {
-        "kuid": "eea905af0f58479cbab8a628d6cb507f"
-    };
 };

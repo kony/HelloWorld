@@ -20,8 +20,7 @@
     "addWidgetsdone": false,
     "allboxes": [],
     "android": {
-        "needAppMenu": false,
-        "titleBar": false
+        "needAppMenu": false
     },
     "canUpdateUI": true,
     "children": [
@@ -74,9 +73,9 @@
     "name": "kony.ui.Form2",
     "needappmenu": true,
     "paddinginpixel": false,
-    "platform": "spaandroidtablet",
-    "prevDevice": "mssurf",
-    "prevPlatform": "spawindowstablet",
+    "platform": "tabrcandroid",
+    "prevDevice": "iPad3",
+    "prevPlatform": "ipad",
     "retainscrollposition": false,
     "shellCSS": "and_Tab_Galaxy7",
     "snapgridsize": 10,
@@ -91,11 +90,10 @@
         "needAppMenu": false
     },
     "titleBarSkin": "s888c554b9644f9ba1026b9a7274b1ac",
-    "titlebar": false,
+    "titlebar": true,
     "type": 3,
     "wType": "Form",
     "windows8": {
-        "needAppMenu": false,
-        "titleBar": false
+        "needAppMenu": false
     }
 }

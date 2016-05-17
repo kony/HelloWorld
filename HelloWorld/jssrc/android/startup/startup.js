@@ -9,11 +9,11 @@ var appConfig = {
     serverPort: "80",
     secureServerPort: "443",
     isDebug: true,
-    middlewareContext: "HelloWorld",
+    middlewareContext: "middleware",
     isMFApp: false,
     eventTypes: ["FormEntry", "ServiceRequest", "Error", "Crash"],
-    url: "https://sampletestcloud.qa-konycloud.com/HelloWorld/MWServlet",
-    secureurl: "https://sampletestcloud.qa-konycloud.com/HelloWorld/MWServlet"
+    secureurl: "https://10.10.25.100:443/middleware/MWServlet",
+    url: "http://10.10.25.100:80/middleware/MWServlet"
 };
 sessionID = "";
 
