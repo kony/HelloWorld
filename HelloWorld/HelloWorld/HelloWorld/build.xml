@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<project name="kony" basedir="." default="main">
+	
+	<target name="main">
+	    <property name="antjar.file" value="${basedir}/ant-contrib-0.6.jar"/>
+		<echo message="Looking for JAR antcontrib.jar at : ${antjar.file}"/>
+		<taskdef resource="net/sf/antcontrib/antcontrib.properties">
+		<classpath>
+			<pathelement location="${antjar.file}"/>
+		</classpath>
+		</taskdef>
+		<osfamily property="os.family"/>	
+	<echo message="Started script..."/>
+	<property name="input.file" location="${basedir}/build.properties"/>
+	
+	<if>
+    <available file="${basedir}/global.properties"/>
+    <then>
+      <property name="global.available" value="true"/>
+    </then>
+	<else>
+	  <property name="global.available" value="false"/>	
+	</else>
+	</if>
+	
+		
+	<if>
+	 <equals arg1="${global.available}" arg2="true"/>
+		<then>
+			<property name="global.file" location="${basedir}/global.properties"/>
+		</then>
+		<else>
+			<property name="global.file" location="../global.properties"/>
+		</else>
+	</if>
+	
+	
+	<echo message="Global properties file LOCATION: ${global.file}"/>
+	<echo message="Build properties file LOCATION: ${input.file}"/>
+	
+	<if>
+		<or>
+			<not>
+				<available file="${input.file}"/>
+			</not>
+			<not>
+				<available file="${global.file}"/>
+			</not>
+		</or>
+		<then>
+			<fail message="Either ${input.file}
+				or
+				${global.file}
+				doesn't exist"/>
+		</then>
+	</if>
+	<property file="${input.file}"/>
+	<property file="${global.file}"/>	
+		
+	
+	<if>
+		<equals arg1="${workspace.location}" arg2=""/>
+		<then>
+			<property name = "ws.location" value ="../" />
+		</then>
+		<else>
+			<property name = "ws.location" value ="${workspace.location}"/>
+		</else>
+	</if>	
+	<echo message="WORKSPACE LOCATION: ${ws.location}"/>	
+	<if>
+		<equals arg1="${project.name}" arg2=""/>
+		<then>
+			<fail message="Project name  is not given. 
+				Please set 'project.name' property in ${input.file}"/>
+		</then>
+		<else>
+			<if>
+				<not>
+					<available file="${ws.location}/${project.name}" type="dir"/>
+				</not>
+				<then>
+					<fail message="Project '${project.name}' doesn't exist in  ${ws.location}"/>
+				</then>
+			</if>
+		</else>
+	</if>
+	
+	
+	<if>
+		<equals arg1="${eclipse.equinox.path}" arg2=""/>
+		<then>
+			<fail message="Please set 'eclipse.equinox.path' property in ${global.file}"/>
+		</then>
+		<else>
+			<if>
+				<not>
+					<available file="${eclipse.equinox.path}"/>
+				</not>
+				<then>
+					<fail message="The path provided for 'eclipse.equinox.path' property in ${global.file} is not present.."/>
+				</then>
+			</if>
+		</else>
+	</if>
+		
+    <if>
+    	<equals arg1="${os.family}" arg2="windows"/>
+    	<then>
+    		<exec dir="." executable="cmd" failonerror="true">
+    			<arg value="/c"/>
+    			<arg value="run.bat"/>
+    			<arg value="${input.file}"/>
+    			<arg value="${ws.location}"/>
+    			<arg value="${eclipse.equinox.path}"/>
+    			<arg value="${global.file}"/>
+    		</exec>
+    	</then>
+    	<else>
+	        <exec dir="." executable="/bin/bash" failonerror="true">
+	        	<arg line='-c "chmod 777 run.sh"'/>
+	        </exec>
+	        <exec dir="." executable="/bin/bash" failonerror="true">
+	        	<arg line='-c "sh run.sh ${input.file} ${ws.location} ${eclipse.equinox.path} ${global.file}"'/>
+	        </exec>
+    	</else>
+    </if>	
+	
+	<echo message="Ending script..."/>
+
+	</target>
+	
+</project>

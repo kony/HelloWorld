@@ -1,0 +1,76 @@
+{
+  "android": {
+    "font_size": 156,
+    "isForked": false
+  },
+  "background_color": "f8f8f8ff",
+  "bg_type": "one",
+  "desktopweb": {
+    "font_size": 156,
+    "isForked": false
+  },
+  "fontSizeInPx": false,
+  "font_color": "555555",
+  "font_name": "Arial, Helvetica, sans-serif",
+  "font_size": 156,
+  "font_weight": "bold",
+  "ipad": {
+    "font_size": 156,
+    "isForked": false
+  },
+  "iphone": {
+    "font_size": 156,
+    "isForked": false
+  },
+  "isDefaultSkin": false,
+  "kiosk": {
+    "font_size": 156,
+    "isForked": false
+  },
+  "kuid": "s2b5c28db1eb4c0ead0a8cd9b19d5daa",
+  "spaan": {
+    "font_size": 156,
+    "isForked": false
+  },
+  "spaandroidtablet": {
+    "font_size": 156,
+    "isForked": false
+  },
+  "spabb": {
+    "font_size": 156,
+    "isForked": false
+  },
+  "spaip": {
+    "font_size": 156,
+    "isForked": false
+  },
+  "spaipad": {
+    "font_size": 156,
+    "isForked": false
+  },
+  "spawindowstablet": {
+    "font_size": 156,
+    "isForked": false
+  },
+  "spawinphone8": {
+    "font_size": 156,
+    "isForked": false
+  },
+  "tabrcandroid": {
+    "font_size": 156,
+    "isForked": false
+  },
+  "wType": "TitleBar",
+  "watchos": {
+    "font_size": 156,
+    "isForked": false
+  },
+  "windows8": {
+    "font_size": 156,
+    "isForked": false
+  },
+  "winphone8": {
+    "font_size": 156,
+    "isForked": false
+  }
+}

@@ -232,7 +232,7 @@
     <attributes name="win8publisherdisplaynamekey" value="KonyLabs"/>
     <attributes name="WP8_ID_CAP_CONTACTS" value="true"/>
     <attributes name="Location" value="true"/>
-    <attributes name="cloud_env_GUID" value="49381cb3-700d-4ed2-b7f6-b33964f56f4a"/>
+    <attributes name="cloud_env_GUID" value="46cc8391-58e2-44bd-8713-5e3ee9d76ffa"/>
     <attributes name="manifest_tag_attrs" value=""/>
     <attributes name="ACCESS_SURFACE_FLINGER" value="false"/>
     <attributes name="currentgaversion" value="7.0.0.Beta2_v201601111917"/>
@@ -373,7 +373,7 @@
     <attributes name="access_pimdomain_contacts" value="false"/>
     <attributes name="apmformExit" value="false"/>
     <attributes name="CHANGE_WIFI_MULTICAST_STATE" value="false"/>
-    <attributes name="cloud_url" value="https://knymftrialjsf.dev-konycloud.com"/>
+    <attributes name="cloud_url" value="http://10.10.25.244:8087"/>
     <attributes name="certs_key_store_pwd" value="kds/0eUc+i3BqFqSkpCk4g=="/>
     <attributes name="CALL_PRIVILEGED" value="false"/>
     <attributes name="SUBSCRIBED_FEEDS_READ" value="false"/>
@@ -461,7 +461,7 @@
     <attributes name="apmerrorunhandledexception" value="true"/>
     <attributes name="tcandroid320basefontsize" value="12"/>
     <attributes name="BROADCAST_SMS" value="false"/>
-    <attributes name="cloud_env_name" value="Anup&#039;s Account-knyMFtrialJSFTest"/>
+    <attributes name="cloud_env_name" value="KonyAccount-LocalDevEnv"/>
     <attributes name="ID_REQ_REARCAMERA" value="false"/>
     <attributes name="tcandroid360basefontsize" value="12"/>
     <attributes name="win8displaynamekey" value="HelloWorld"/>

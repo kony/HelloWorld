@@ -38,7 +38,7 @@
     "context": {
         "channel": "tablet",
         "formID": "frmHome",
-        "platform": "tabrcandroid",
+        "platform": "spaandroidtablet",
         "templateType": "forms",
         "topLevelBox": null
     },

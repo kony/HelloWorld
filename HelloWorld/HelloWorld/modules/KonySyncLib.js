@@ -1,7 +1,5 @@
-// KonySyncLib.js
-//  --Generated On Mon Nov 09 17:45:50 IST 2015******************* 
-// 
-// 
+// -- SDK File : KonySyncLib.js 
+//  --Generated On Mon Jan 11 17:29:19 IST 2016******************* 
 //  **************** Start jsonWriter.js*******************
 //#ifdef iphone
 	//#define KONYSYNC_IOS
@@ -289,6 +287,10 @@ if(typeof(sync)=== "undefined"){
 	sync = {};
 }
 
+if(typeof(kony.sync.blobManager) === "undefined") {
+	kony.sync.blobManager = {};
+}
+
 // Device Auto Registration and Validation Starts here --
 sync.startSession = function(config) {
 	if(kony.sync.validateSyncConfigParams("startSession", config) === false){
@@ -301,6 +303,10 @@ sync.startSession = function(config) {
 	var registerSuccess = true;
 	var alreadyRegistered = false;
 	var isError = false;
+
+	//assign the currentSyncBinaryStats to lastSyncBinaryStats.
+	kony.sync.reinitializeBinaryStats();
+
 	function single_transaction_callback(tx) {
 		sync.log.trace("Entering single_transaction_callback");
 		var query = kony.sync.qb_createQuery();
@@ -461,6 +467,17 @@ kony.sync.validateScopeSession = function(abortSync, syncErrorObject) {
 	function callback(isSyncComplete){
 		var isError = false;
 		if (isSyncComplete === true) {
+			sync.log.trace("is Sync Complete true...");
+			
+			if(!kony.sync.isNullOrUndefined(sync.util)) {
+				sync.log.trace("notifying the on demand binary thread. after sync start");
+				sync.util.notifyToPrepareJobs();
+			}
+			//var currentSyncConfig = JSON.stringify(kony.sync.currentSyncConfigParams);
+			//store the current sync config so that it can be used later.
+			//kony.store.setItem(kony.sync.currentSyncConfigKey, currentSyncConfig);
+			//sync.log.trace("resetScopeSessionGlobals callback - "+currentSyncConfig);
+			
 			if(kony.sync.forceUpload === true){
 				kony.sync.forceUpload = false;
 				kony.sync.omitDownload = false;
@@ -774,13 +791,15 @@ if (typeof(sync) === "undefined") {
 
 if(typeof(kony.sync.blobManager) === "undefined") {
     kony.sync.blobManager = {};
-};
+}
 
 kony.sync.BlobType = {
     BASE64 : 1,
     FILE: 2
 };
 
+kony.sync.currentSyncStats = {};
+kony.sync.lastSyncStats = {};
 
 
 //defining states for blob manager.
@@ -794,9 +813,13 @@ kony.sync.blobManager.FILE_DOESNOT_EXIST = 31;
 kony.sync.blobManager.DOWNLOAD_ACCEPTED= 61;
 kony.sync.blobManager.DOWNLOAD_FAILED = 63;
 kony.sync.blobManager.DOWNLOAD_IN_PROGRESS = 64;
+kony.sync.blobManager.UPLOAD_ACCEPTED = 71;
+kony.sync.blobManager.UPLOAD_FAILED = 73;
+kony.sync.blobManager.UPLOAD_IN_PROGRESS = 74;
 kony.sync.blobManager.NO_OPERATION = 50;
 
-kony.sync.blobManager.ONDEMAND_FETCH_LIMIT = 1;
+
+kony.sync.blobManager.ONDEMAND_FETCH_LIMIT = 10;
 kony.sync.blobManager.ONDEMAND_FETCH_OFFSET = 0;
 
 //defining state messages..
@@ -814,6 +837,10 @@ kony.sync.blobManager.states[kony.sync.blobManager.DOWNLOAD_ACCEPTED] = "Downloa
 kony.sync.blobManager.states[kony.sync.blobManager.DOWNLOAD_FAILED] = "Download Operation Failed";
 kony.sync.blobManager.states[kony.sync.blobManager.DOWNLOAD_IN_PROGRESS] = "Download Operation in Process";
 kony.sync.blobManager.states[kony.sync.blobManager.NO_OPERATION] = "Blob record available";
+kony.sync.blobManager.states[kony.sync.blobManager.UPLOAD_ACCEPTED] = "Upload Request added to the queue";
+kony.sync.blobManager.states[kony.sync.blobManager.UPLOAD_IN_PROGRESS] = "Upload Operation In progress";
+kony.sync.blobManager.states[kony.sync.blobManager.UPLOAD_FAILED] = "Upload Operation Failed";
+
 //  **************** End KonySyncBlobConstants.js*******************
 
 
@@ -842,6 +869,7 @@ kony.sync.blobManager.state = "state";
 kony.sync.blobManager.status = "status";
 kony.sync.blobManager.size = "size";
 kony.sync.blobManager.lastUpdatedTimeStamp = "lastUpdatedTimeStamp";
+kony.sync.blobManager.retry = 'retry';
 
 
 var dbname = kony.sync.syncConfigurationDBName;
@@ -881,69 +909,63 @@ kony.sync.blobManager.updateBlobManager = function(tx, blobid, valuesTable, erro
  * @param base64 the base64 value which has to be inserted in the blob store
  */
 
-kony.sync.blobManager.saveBlob = function(tx, tableName, columnName, base64, error_callback) {
+kony.sync.blobManager.saveBlob = function(tx, tableName, columnName, base64, errorCallback) {
 
 	if(!kony.sync.isNullOrUndefined(base64) && base64.trim().length > 0) {
 		var query = kony.sync.qb_createQuery();
-
+		var error;
 		kony.sync.qb_set(query, {
 			localPath: "",
 			size: base64.length,
 			status: 100,
 			state: kony.sync.blobManager.INSERT_PROCESSING,
-			type: "base64",
+			type: kony.sync.blobTypeBase64,
 			tableName : tableName,
-			columnName : columnName,
-			lastUpdatedTimeStamp: 'now()'
+			columnName : columnName
 		});
 
 		kony.sync.qb_insert(query, kony.sync.blobStoreManagerTable);
 		var query_compile = kony.sync.qb_compile(query);
 		var sql = query_compile[0];
 		var params = query_compile[1];
-		resultset = kony.sync.executeSql(tx, sql, params, error_callback);
+		resultset = kony.sync.executeSql(tx, sql, params, errorCallback);
 
 		if (resultset === null || resultset === false)
 			return null;
 
 		var blobId = resultset.insertId;
 
-		var blobFileName = sync.util.savefile("" + blobId, base64);
-		kony.print("blob file is " + blobFileName);
+		var blobFileName = sync.util.saveBase64File("" + blobId, base64);
+		sync.log.trace("blob filepath returned is " + blobFileName);
 		//if file creation is successful.. insert the file path to the blobstoremanager.
 		var valuesTable = {};
 
 		if (blobFileName) {
-			//TODO - update the progress information.
 			valuesTable[kony.sync.blobManager.localPath] = blobFileName;
 			valuesTable[kony.sync.blobManager.state] = kony.sync.blobManager.NO_OPERATION;
 			valuesTable[kony.sync.blobManager.status] = 100;
 
-			kony.sync.blobManager.updateBlobManager(tx, blobId, valuesTable, error_callback);
+			kony.sync.blobManager.updateBlobManager(tx, blobId, valuesTable, errorCallback);
 
 		} else {
 			valuesTable[kony.sync.blobManager.state] = kony.sync.blobManager.INSERT_FAILED;
 			valuesTable[kony.sync.blobManager.status] = 0;
-			kony.sync.blobManager.updateBlobManager(tx, blobId, valuesTable, error_callback);
+			kony.sync.blobManager.updateBlobManager(tx, blobId, valuesTable, errorCallback);
 
-			var error = kony.sync.getErrorTable(
+			error = kony.sync.getErrorTable(
 				kony.sync.errorCodeBlobFileNotCreated,
 				kony.sync.getErrorMessage(kony.sync.errorCodeBlobFileNotCreated)
 			);
-
-			error_callback(error);
+			kony.sync.verifyAndCallClosure(errorCallback, error);
 			return;
 		}
-
 		return blobId;
 	} else {
-		var error = kony.sync.getErrorTable(
+		error = kony.sync.getErrorTable(
 			kony.sync.errorCodeEmptyOrNullBase64,
 			kony.sync.getErrorMessage(kony.sync.errorCodeEmptyOrNullBase64)
 		);
-
-		error_callback(error);
-		return;
+		kony.sync.verifyAndCallClosure(errorCallback, error);
 	}
 
 };
@@ -958,10 +980,11 @@ kony.sync.blobManager.deleteBlob = function(tx, blobid, errorCallback) {
 
 	kony.print("deleteBlobFromTable..");
 	if (blobid === undefined || typeof(blobid) !== "number") {
-		//TODO - error object create.
-		var err = {};
-		errorCallback(err);
-		return;
+		var error = kony.sync.getErrorTable(
+			kony.sync.errorCodeInvalidColumnParams,
+			kony.sync.getErrorMessage(kony.sync.errorCodeInvalidColumnParams)
+		);
+		kony.sync.verifyAndCallClosure(errorCallback, error);
 	} else {
 		var blobMeta = kony.sync.blobManager.getBlobMetaDetails(tx, blobid, errorCallback);
 		//state, status, localPath
@@ -970,54 +993,49 @@ kony.sync.blobManager.deleteBlob = function(tx, blobid, errorCallback) {
 		if(!kony.sync.isNullOrUndefined(blobMeta)) {
 			state = blobMeta[kony.sync.blobManager.state];
 		}
-		//TODO - can downloadAccepted be downloaded.
+
 		var possibleStates = [kony.sync.blobManager.INSERT_FAILED, kony.sync.blobManager.DELETE_FAILED, kony.sync.blobManager.FILE_DOESNOT_EXIST,
-			kony.sync.blobManager.NO_OPERATION,kony.sync.blobManager.UPDATE_FAILED ,kony.sync.blobManager.DOWNLOAD_FAILED];
+			kony.sync.blobManager.NO_OPERATION,kony.sync.blobManager.UPDATE_FAILED ,kony.sync.blobManager.DOWNLOAD_FAILED, kony.sync.blobManager.DOWNLOAD_IN_PROGRESS,
+			kony.sync.blobManager.DOWNLOAD_ACCEPTED];
 		if(!kony.sync.isNullOrUndefined(state) && possibleStates.indexOf(state) !== -1) {
 			var valuesTable = {};
 			valuesTable[kony.sync.blobManager.state] = kony.sync.blobManager.DELETE_PROCESSING;
 			kony.sync.blobManager.updateBlobManager(tx, blobid, valuesTable, errorCallback);
 
-			var deleteFile = sync.util.deletefile(blobMeta[kony.sync.blobManager.localPath]);
-			if(deleteFile){
-				var query = kony.sync.qb_createQuery();
-				kony.sync.qb_delete(query, kony.sync.blobStoreManagerTable);
-				var wcs = [{
-					key: kony.sync.blobManager.id,
-					value: blobid,
-					comptype: 'OR'
-				}];
+			var deleteFile = sync.util.deleteBlobFile(blobMeta[kony.sync.blobManager.localPath]);
+			//TODO - add check to deletefile status..
+			var query = kony.sync.qb_createQuery();
+			kony.sync.qb_delete(query, kony.sync.blobStoreManagerTable);
+			var wcs = [{
+				key: kony.sync.blobManager.id,
+				value: blobid,
+				comptype: 'OR'
+			}];
 
-				kony.sync.qb_where(query, wcs);
+			kony.sync.qb_where(query, wcs);
 
-				var query_compile = kony.sync.qb_compile(query);
-				var sql = query_compile[0];
-				var params = query_compile[1];
+			var query_compile = kony.sync.qb_compile(query);
+			var sql = query_compile[0];
+			var params = query_compile[1];
 
-				resultset = kony.db.executeSql(tx, sql, params, errorCallback);
+			resultset = kony.db.executeSql(tx, sql, params, errorCallback);
 
-				if(resultset === null || resultset === false ){
-					valuesTable = {};
-					valuesTable[kony.sync.blobManager.state] = kony.sync.blobManager.DELETE_FAILED;
-					kony.sync.blobManager.updateBlobManager(tx, blobid, valuesTable, errorCallback)
-				}
-
-				return resultset;
-			} else{
+			if(resultset === null || resultset === false ){
 				valuesTable = {};
 				valuesTable[kony.sync.blobManager.state] = kony.sync.blobManager.DELETE_FAILED;
-				kony.sync.blobManager.updateBlobManager(tx, blobid, valuesTable, errorCallback);
+				kony.sync.blobManager.updateBlobManager(tx, blobid, valuesTable, errorCallback)
 			}
+			return resultset;
+
 		} else {
 			var error = kony.sync.getErrorTable(
 				kony.sync.errorCodeBlobInvalidStateForDelete,
 				kony.sync.getErrorMessage(kony.sync.errorCodeBlobInvalidStateForDelete, kony.sync.blobManager.states[state])
 			);
-			errorCallback(error);
-
+			kony.sync.verifyAndCallClosure(errorCallback, error);
 		}
 	}
-}
+};
 /**
  * This method is used to update the binary data referred by id.
  * @param id unique id of the base64 value.
@@ -1025,10 +1043,13 @@ kony.sync.blobManager.deleteBlob = function(tx, blobid, errorCallback) {
  */
 kony.sync.blobManager.updateBlob = function(tx, blobid, base64, errorCallback) {
 
+	var error;
 	if (blobid === undefined || typeof(blobid) !== "number") {
-		//TODO - error object create.
-		var err = {};
-		errorCallback(err);
+		error = kony.sync.getErrorTable(
+			kony.sync.errorCodeInvalidColumnParams,
+			kony.sync.getErrorMessage(kony.sync.errorCodeInvalidColumnParams)
+		);
+		kony.sync.verifyAndCallClosure(errorCallback, error);
 	} else {
 		var blobMeta = kony.sync.blobManager.getBlobMetaDetails(tx, blobid, errorCallback);
 		//state, status, localPath
@@ -1036,7 +1057,7 @@ kony.sync.blobManager.updateBlob = function(tx, blobid, base64, errorCallback) {
 		if(!kony.sync.isNullOrUndefined(blobMeta)) {
 			state = blobMeta[kony.sync.blobManager.state];
 		}
-		var possibleStates = [kony.sync.blobManager.INSERT_FAILED, kony.sync.blobManager.FILE_DOESNOT_EXIST,
+		var possibleStates = [kony.sync.blobManager.INSERT_FAILED, kony.sync.blobManager.FILE_DOESNOT_EXIST, kony.sync.blobManager.DELETE_FAILED,
 			kony.sync.blobManager.NO_OPERATION, kony.sync.blobManager.UPDATE_FAILED ,kony.sync.blobManager.DOWNLOAD_FAILED,
 			kony.sync.blobManager.DOWNLOAD_ACCEPTED, kony.sync.blobManager.DOWNLOAD_IN_PROGRESS];
 
@@ -1045,57 +1066,62 @@ kony.sync.blobManager.updateBlob = function(tx, blobid, base64, errorCallback) {
 			valuesTable[kony.sync.blobManager.state] = kony.sync.blobManager.UPDATE_PROCESSING;
 			kony.sync.blobManager.updateBlobManager(tx, blobid, valuesTable, errorCallback);
 
-			var isBlobSaved = sync.util.savefile(blobMeta[kony.sync.blobManager.localPath], base64);
+			var isBlobSaved = sync.util.saveBase64File("" + blobid, base64);
 
 			if (isBlobSaved !== null) {
 				valuesTable = {};
 				valuesTable[kony.sync.blobManager.state] = kony.sync.blobManager.NO_OPERATION;
 				kony.sync.blobManager.updateBlobManager(tx, blobid, valuesTable, errorCallback);
-				return true;
 			} else {
 				valuesTable = {};
 				valuesTable[kony.sync.blobManager.state] = kony.sync.blobManager.UPDATE_FAILED;
 				kony.sync.blobManager.updateBlobManager(tx, blobid, valuesTable, errorCallback);
-				return false;
 			}
+			return blobid;
 		} else {
-			var error = kony.sync.getErrorTable(
+			error = kony.sync.getErrorTable(
 				kony.sync.errorCodeBlobInvalidStateForUpdate,
 				kony.sync.getErrorMessage(kony.sync.errorCodeBlobInvalidStateForUpdate, kony.sync.blobManager.states[state])
 			);
-			errorCallback(error);
+			kony.sync.verifyAndCallClosure(errorCallback, error);
 		}
 	}
 };
 
+
 /**
- * This is a utility method used to insert blobvalues to konysyncBLOBSTOREMANAGER and return
- * corresponding blobids
+ * This is a utility method used to insert inline policy blobvalues to konysyncBLOBSTOREMANAGER
+ * and return corresponding blob ids
  * @param tx transaction id
  * @param tbname tablename
  * @param values table columns
  * @return object containing columns and their blob indices
  */
 kony.sync.blobstore_insert = function(tx, tbname, values, errorCallback) {
-	var blobStoreIndices = {};
-	if(kony.sync.isNullOrUndefined(kony.sync.scopes.syncScopeBlobInfoMap[tbname])){
-		return blobStoreIndices;
+
+	if(kony.sync.isNullOrUndefined(kony.sync.scopes.syncScopeBlobInfoMap[tbname]) ||
+		kony.sync.isNullOrUndefined(kony.sync.scopes.syncScopeBlobInfoMap[tbname][kony.sync.columns])){
+		//TODO - call error callback with apt error.
+		return;
 	}
-	var binaryColumns = kony.sync.scopes.syncScopeBlobInfoMap[tbname][kony.sync.columns];
-	var binaryColumnsLength = binaryColumns.length;
-	var binaryColumnName = null;
-	var blobIndex = null;
-	for(var i=0; i<binaryColumnsLength; i++) {
-		binaryColumnName = binaryColumns[i];
-		if(!kony.sync.isNullOrUndefined(values[binaryColumnName])) {
-			blobIndex = kony.sync.blobManager.saveBlob(tx, tbname, binaryColumnName, values[binaryColumnName], errorCallback);
+	var blobstoreindices = {};
+	var j;
+	var sql;
+	var binaryColumnsList = Object.keys(values);
+	var binaryColumnRefs = [];
+	for(j = 0; j < binaryColumnsList.length; j++) {
+		binaryColumnRefs[j] = kony.sync.binaryMetaColumnPrefix + binaryColumnsList[j]
+	}
+
+	for(j in binaryColumnsList) {
+		if(!kony.sync.isNullOrUndefined(values[binaryColumnsList[j]])) {
+			var blobIndex = kony.sync.blobManager.saveBlob(tx, tbname, binaryColumnsList[j] , values[binaryColumnsList[j]], errorCallback);
 			if(!kony.sync.isNullOrUndefined(blobIndex)) {
-				blobStoreIndices[binaryColumnName] = blobIndex;
+				blobstoreindices[binaryColumnRefs[j]] = blobIndex;
 			}
 		}
 	}
-	kony.print("blobStoreindices "+JSON.stringify(blobStoreIndices));
-	return blobStoreIndices;
+	return blobstoreindices;
 };
 
 /**
@@ -1108,56 +1134,55 @@ kony.sync.blobstore_insert = function(tx, tbname, values, errorCallback) {
  * @param isBatch - indicates whether utility function is used for batch or not
  * @return object containing columns and their blob indices
  */
-kony.sync.blobstore_update = function(tx, tbname, values, wc, isBatch) {
-	var blobStoreIndices = {};
-	if(kony.sync.isNullOrUndefined(kony.sync.scopes.syncScopeBlobInfoMap[tbname])){
-		return blobStoreIndices;
+kony.sync.blobstore_update = function(tx, tbname, values, wc, isBatch, errorCallback) {
+	var isUpdateSuccessful =true;
+	if(kony.sync.isNullOrUndefined(kony.sync.scopes.syncScopeBlobInfoMap[tbname]) ||
+		kony.sync.isNullOrUndefined(kony.sync.scopes.syncScopeBlobInfoMap[tbname][kony.sync.columns])){
+		//TODO - call error callback with apt error.
+		return;
 	}
-	var binaryColumns = kony.sync.scopes.syncScopeBlobInfoMap[tbname][kony.sync.columns];
-	var binaryColumnsLength = binaryColumns.length;
-	var binaryColumnName = null;
-	var blobIndex = null;
-	var konysyncBinaryColumn = null;
-	var query = null;
-	var query_compile = null;
-	var sql = null;
-	var params = null;
-	var resultset = null;
-	for(var i=0; i < binaryColumnsLength; i++) {
-		binaryColumnName = binaryColumns[i];
-		konysyncBinaryColumn = kony.sync.binaryMetaColumnPrefix + binaryColumnName;
-		if(!kony.sync.isNullOrUndefined(values[binaryColumnName])) {
-			query = kony.sync.qb_createQuery();
-			kony.sync.qb_select(query, [konysyncBinaryColumn]);
-			kony.sync.qb_from(query, tbname);
-			if(isBatch === true) {
-				query_compile = kony.sync.qb_compile(query);
-				sql = query_compile[0] + " " + wc;
-			}
-			else {
-				kony.sync.qb_where(query, wc);
-				query_compile = kony.sync.qb_compile(query);
-				sql = query_compile[0];
-			}
-			params = query_compile[1];
-			resultset = kony.sync.executeSql(tx, sql, params);
-			if(resultset !== false && resultset.rows.length > 0) {
-				var rowItem = kony.db.sqlResultsetRowItem(tx, resultset, 0);
-				if (!kony.sync.isNullOrUndefined(rowItem[konysyncBinaryColumn])) {
-					blobIndex = rowItem[konysyncBinaryColumn];
-					var results = kony.sync.blobManager.updateBlob(tx, blobIndex, values[binaryColumnName],
-						function (err) {
-							kony.print("error in updateBlob " + JSON.stringify(err));
-						});
-					if(!results) {
-						return;
+	var blobstoreindices = {};
+	var query_compile;
+	var sql;
+	var binaryColumnsList = Object.keys(values);
+	var binaryColumnRefs = [];
+	for(var i = 0; i < binaryColumnsList.length; i++) {
+		binaryColumnRefs[i] = kony.sync.binaryMetaColumnPrefix + binaryColumnsList[i]
+	}
+	var query = kony.sync.qb_createQuery();
+	kony.sync.qb_select(query, binaryColumnRefs);
+	kony.sync.qb_from(query, tbname);
+	if(isBatch === true) {
+		query_compile = kony.sync.qb_compile(query);
+		sql = query_compile[0] + " " + wc;
+	}
+	else {
+		kony.sync.qb_where(query, wc);
+		query_compile = kony.sync.qb_compile(query);
+		sql = query_compile[0];
+	}
+	var params = query_compile[1];
+	var resultset = kony.sync.executeSql(tx, sql, params, errorCallback);
+
+	if(resultset !== false && resultset !== null) {
+		if(resultset.rows.length > 0) {
+			var rowItem = kony.db.sqlResultsetRowItem(tx, resultset, 0);
+			for (var j = 0; j < binaryColumnRefs.length; j++) {
+				var blobIndex;
+				if (!kony.sync.isNullOrUndefined(rowItem[binaryColumnRefs[j]])) {
+					if(rowItem[binaryColumnRefs[j]] !== "NULL")
+						blobIndex = kony.sync.blobManager.updateBlob(tx, rowItem[binaryColumnRefs[j]], values[binaryColumnsList[j]], errorCallback);
+					else {
+						blobIndex = kony.sync.blobManager.saveBlob(tx, tbname, binaryColumnsList[j], values[binaryColumnsList[j]], errorCallback);
 					}
-					blobStoreIndices[binaryColumnName] = blobIndex;
+				}
+				if (!kony.sync.isNullOrUndefined(blobIndex)) {
+					blobstoreindices[binaryColumnRefs[j]] = blobIndex;
 				}
 			}
 		}
+		return blobstoreindices;
 	}
-	return blobStoreIndices;
 };
 
 /**
@@ -1167,82 +1192,133 @@ kony.sync.blobstore_update = function(tx, tbname, values, wc, isBatch) {
  * @param isBatch indicates whether utility function is used for batch or not
  * @return
  */
-kony.sync.blobstore_delete = function(tx, tbname, wc, isBatch) {
-	if(kony.sync.isNullOrUndefined(kony.sync.scopes.syncScopeBlobInfoMap[tbname])){
-		return;
+kony.sync.blobstore_delete = function(tx, tbname, wc, isBatch, errorCallback) {
+	if(kony.sync.isNullOrUndefined(kony.sync.scopes.syncScopeBlobInfoMap[tbname]) ||
+		kony.sync.isNullOrUndefined(kony.sync.scopes.syncScopeBlobInfoMap[tbname][kony.sync.columns])){
+		return true;
 	}
 	var binaryColumns = kony.sync.scopes.syncScopeBlobInfoMap[tbname][kony.sync.columns];
 	var isDeleteSuccessful = true;
 	var query_compile = null;
 	var sql = null;
-	var params = null;
-	for(var i=0; i<binaryColumns.length; i++) {
 
-		var konysyncBinaryColumn = kony.sync.binaryMetaColumnPrefix + binaryColumns[i];
-		var query = kony.sync.qb_createQuery();
-		kony.sync.qb_select(query, [konysyncBinaryColumn]);
-		kony.sync.qb_from(query, tbname);
-		if(isBatch === true) {
-			query_compile = kony.sync.qb_compile(query);
-			sql = query_compile[0] + " " + wc;
-		} else {
-			kony.sync.qb_where(query, wc);
-			query_compile = kony.sync.qb_compile(query);
-			sql = query_compile[0];
-		}
-		params = query_compile[1];
-		var resultset = kony.sync.executeSql(tx, sql, params);
-		if(resultset !== false && resultset.rows.length > 0) {
-			var blobIndex = null;
+	var binaryColumnRefs = [];
+	for(var i = 0; i < binaryColumns.length; i++) {
+		binaryColumnRefs[i] = kony.sync.binaryMetaColumnPrefix + binaryColumns[i];
+	}
+	var query = kony.sync.qb_createQuery();
+	kony.sync.qb_select(query, binaryColumnRefs);
+	kony.sync.qb_from(query, tbname);
+	if(isBatch === true) {
+		query_compile = kony.sync.qb_compile(query);
+		sql = query_compile[0] + " " + wc;
+	} else {
+		kony.sync.qb_where(query, wc);
+		query_compile = kony.sync.qb_compile(query);
+		sql = query_compile[0];
+	}
+	var params = query_compile[1];
+	var resultset = kony.sync.executeSql(tx, sql, params, errorCallback);
+	if(resultset !== false && resultset !== null) {
+		if (resultset.rows.length > 0) {
 			var rowItem = kony.db.sqlResultsetRowItem(tx, resultset, 0);
-			if (!kony.sync.isNullOrUndefined(rowItem[konysyncBinaryColumn])) {
-				blobIndex = rowItem[konysyncBinaryColumn];
-			}
-			if(blobIndex) {
-				var results = kony.sync.blobManager.deleteBlob(tx, blobIndex, function (err) {
-					kony.print("error in deleteblob " + JSON.stringify(err));
-				});
-				sync.log.trace("results from deleteBlob " + results);
-				if (!results) {
-					isDeleteSuccessful = false;
+			for (var i = 0; i < binaryColumnRefs.length; i++) {
+				var blobIndex;
+				if (!kony.sync.isNullOrUndefined(rowItem[binaryColumnRefs[i]])) {
+					blobIndex = rowItem[binaryColumnRefs[i]];
+					if(blobIndex !== "NULL") {
+						var results = kony.sync.blobManager.deleteBlob(tx, blobIndex, errorCallback);
+						if(results === false || results === null){
+							isDeleteSuccessful = false;
+						}
+					}
 				}
 			}
 		}
+		return isDeleteSuccessful;
 	}
-	return isDeleteSuccessful;
 };
 
 /**
  * Success callback called after successful completion of download.
  * @param response - contains the response from download manager. (blobid, value file/base64).
  */
+
+//expected fields in response.
+//blobid,requestState,statusCode, errorResponse
+//filePath 
 kony.sync.blobManager.onDemandUniversalSuccessCallback = function(response) {
 	sync.log.trace(" Entered into kony.sync.blobManager.onDemandUniversalSuccessCallback "+JSON.stringify(response));
+
+	var isDownload = true;
 	if(response.hasOwnProperty("blobid")) {
 		var successResponse = {};
 		var blobId = parseInt(response.blobid);
-		var filePath = response.filePath;
 
-		kony.sync.blobManager.updateStatusAfterDownload(blobId, filePath, true);
 		//give the response to the user.
-		var blobType = kony.sync.blobManager.getRegisteredBlobType(blobId);
-		if (!kony.sync.isNullOrUndefined(blobType)) {
+		function invokeCallbacks(updateResult, filePath) {
+			if(isDownload) {
+				if (updateResult) {
+					var blobType = kony.sync.blobManager.getRegisteredBlobType(blobId);
+					//increment total number of download jobs completed..
+					kony.sync.incrementCompletedJobs(true);
 
-			successResponse.pkTable = kony.sync.blobManager.getRegisteredPkTable(blobId);
-			if (blobType === kony.sync.BlobType.FILE)
-				successResponse.filePath = response.filePath;
-			else {
-				var base64String = sync.util.getallbase64([response.filePath]);
-				successResponse.base64 = base64String[0];
+					if (!kony.sync.isNullOrUndefined(blobType)) {
+
+						successResponse.pkTable = kony.sync.blobManager.getRegisteredPkTable(blobId);
+						if (blobType === kony.sync.BlobType.FILE) {
+							var decodedFilePath = sync.util.decodeBase64File(filePath);
+							successResponse.filePath = decodedFilePath;
+						}
+						else {
+							var base64String = sync.util.getBase64FromFiles([filePath]);
+							successResponse.base64 = base64String[0];
+						}
+						var successCallback = kony.sync.blobManager.getRegisteredSuccessCallback(blobId);
+						//clean up binarynotifier map..
+						if (!kony.sync.isNullOrUndefined(successCallback)) {
+							kony.sync.verifyAndCallClosure(successCallback, successResponse);
+						}
+					} else {
+						//log download completed..
+						sync.log.info("Download completed for blob id " + blobId);
+					}
+				} else {
+					var errorCallback = kony.sync.blobManager.getRegisteredErrorCallback(blobId);
+					//increment total number of download jobs failed..
+					kony.sync.incrementFailedJobs(true);
+
+					if (!kony.sync.isNullOrUndefined(errorCallback)) {
+						//update status failed after download.
+						var error = kony.sync.getErrorTable(
+							kony.sync.errorCodeBinaryDownloadFailed,
+							kony.sync.getErrorMessage(kony.sync.errorCodeBinaryDownloadFailed)
+						);
+						kony.sync.verifyAndCallClosure(errorCallback, error);
+					}
+				}
+			} else {
+				//increment upload completed jobs..
+				kony.sync.incrementCompletedJobs(false);
+
+				if (!kony.sync.isNullOrUndefined(kony.sync.currentSyncConfigParams) &&
+					kony.sync.isValidFunctionType(kony.sync.currentSyncConfigParams["uploadBinarySuccessCallback"])) {
+					var uploadSuccessCallback = kony.sync.currentSyncConfigParams["uploadBinarySuccessCallback"];
+					kony.sync.verifyAndCallClosure(uploadSuccessCallback, response);
+				}
+				else {
+					sync.log.info("Upload completed..");
+				}
 			}
-			var successNotifier = kony.sync.blobManager.getRegisteredSuccessCallback(blobId);
-			//clean up binarynotifier map..
-
-			successNotifier(successResponse);
-		} else {
-			//log download completed..
-			sync.log.info("Download completed for blob id " + blobId);
+			//invoke the notifier..
+			kony.sync.invokeBinaryNotifiers(isDownload);
 		}
+		//check the type of request.
+		if(parseInt(response[kony.sync.requestState]) === kony.sync.blobManager.UPLOAD_IN_PROGRESS) {
+			isDownload = false;
+		}
+
+		kony.sync.blobManager.updateStatusAfterOndemandJob(response, true,isDownload , invokeCallbacks);
 	}
 };
 
@@ -1253,25 +1329,53 @@ kony.sync.blobManager.onDemandUniversalSuccessCallback = function(response) {
  */
 kony.sync.blobManager.onDemandUniversalErrorCallback = function(response) {
 	sync.log.error("universal error callback " + JSON.stringify(response));
+	var isDownload = true;
 	if(response.hasOwnProperty("blobid")) {
-		var errorNotifier = kony.sync.blobManager.getRegisteredErrorCallback(response.blobid);
-		if (!kony.sync.isNullOrUndefined(errorNotifier)) {
-			kony.sync.blobManager.updateStatusAfterDownload(response.blobid, "" ,false);
+		function invokeCallbacks(updateResult, filePath) {
+			if(isDownload) {
+				//increment total number of download jobs failed..
+				kony.sync.incrementFailedJobs(true);
+				sync.log.trace("invoking error callback for the download request..");
+				var errorCallback = kony.sync.blobManager.getRegisteredErrorCallback(response.blobid);
+				if (!kony.sync.isNullOrUndefined(errorCallback)) {
+					kony.sync.verifyAndCallClosure(errorCallback, response);
+				}
+			} else {
+				//increment total number of download jobs failed..
+				kony.sync.incrementFailedJobs(false);
+				sync.log.trace("invoking error callback for the upload request..");
+				if (!kony.sync.isNullOrUndefined(kony.sync.currentSyncConfigParams) &&
+					kony.sync.isValidFunctionType(kony.sync.currentSyncConfigParams["uploadBinaryErrorCallback"])) {
+					var uploadErrorCallback = kony.sync.currentSyncConfigParams["uploadBinaryErrorCallback"];
+					//update the status.
+					kony.sync.verifyAndCallClosure(uploadErrorCallback, response);
 
-			errorNotifier(response);
+				} else {
+					//upload failed.
+					sync.log.error("sync binary upload failed for blob id "+response.blobid);
+				}
+			}
 		}
+
+		//using the request state find out if the request is for upload/ download.
+		if(response[kony.sync.requestState] === kony.sync.blobManager.UPLOAD_IN_PROGRESS) {
+			isDownload = false;
+		}
+		//invoke the notifier..
+		kony.sync.invokeBinaryNotifiers(isDownload);
+
+		kony.sync.blobManager.updateStatusAfterOndemandJob(response, false, isDownload ,invokeCallbacks);
 	}
 };
 
 /** Method used to register success and error callbacks for given blob download.
- *
  * @param blobid - blobid which is under download
  * @param pks - primary key values which uniquely identify the blob in parent table
- * @param successNotifier - success callback to be called after successful download
- * @param errorNotifier - error callback to be called in case of failure.
+ * @param successCallback - success callback to be called after successful download
+ * @param errorCallback - error callback to be called in case of failure.
  */
-kony.sync.blobManager.registerCallbacks = function(blobid, pks, blobType, successNotifier, errorNotifier){
-	kony.sync.blobManager.binaryNotifierMap[blobid] = [pks, blobType, successNotifier, errorNotifier];
+kony.sync.blobManager.registerCallbacks = function(blobid, pks, blobType, successCallback, errorCallback){
+	kony.sync.blobManager.binaryNotifierMap[blobid] = [pks, blobType, successCallback, errorCallback];
 };
 
 /**
@@ -1325,30 +1429,124 @@ kony.sync.blobManager.getRegisteredBlobType = function(blobid) {
  * Method used to update status of the blob record to completed after completion of donwload.
  * @param blobid - id for which the status has to be updated.
  * @param success - result of operation (true/ false).
+ * @param isDownload - operation type. true for download / false for upload.
  */
-kony.sync.blobManager.updateStatusAfterDownload = function(blobid, filePath, success) {
+kony.sync.blobManager.updateStatusAfterOndemandJob = function(response, success, isDownload, updateResultCallback) {
 
+	var finalFilePath = "";
+	var valuesTable = {};
 	function single_transaction_callback(tx) {
-		sync.log.trace(" kony.sync.blobManager.updateStatusAfterDownload: single_transaction_callback ", blobid);
-		var valuesTable = {};
-		if(success) {
-			valuesTable[kony.sync.blobManager.state] = kony.sync.blobManager.NO_OPERATION;
-			valuesTable[kony.sync.blobManager.status] = 100;
-		} else {
-			valuesTable[kony.sync.blobManager.state] = kony.sync.blobManager.DOWNLOAD_FAILED;
-			valuesTable[kony.sync.blobManager.status] = 0;
-		}
-		valuesTable[kony.sync.blobManager.localPath] = filePath;
+		var blobid = parseInt(response[kony.sync.blobId]);
 
-		kony.sync.blobManager.updateBlobManager(tx, blobid, valuesTable);
+		var blobMeta = kony.sync.blobManager.getBlobMetaDetails(tx, blobid, function(err){
+			sync.log.trace("error in fetching blobMeta --> updateStatusAfterOndemandJob" );
+		});
+		if(isDownload) {
+			if (blobMeta[kony.sync.blobManager.state] === parseInt(response[kony.sync.requestState])) {
+				//delete the previousFile and rename the temp file.
+				if (success) {
+					sync.log.trace(" kony.sync.blobManager.updateStatusAfterOndemandJob: single_transaction_callback ", blobid);
+					var previousFileName = blobMeta[kony.sync.blobManager.localPath];
+					var filePath = response["filePath"];
+					var fileSuccess;
+					if (previousFileName === "") {
+						filePath = filePath.substring(0, filePath.indexOf("_temp"));
+						fileSuccess = sync.util.renameFile(response["filePath"], filePath);
+						finalFilePath = filePath;
+					} else {
+						fileSuccess = sync.util.renameFile(response["filePath"], previousFileName);
+						finalFilePath = previousFileName;
+					}
+
+					if (fileSuccess) {
+						valuesTable[kony.sync.blobManager.state] = kony.sync.blobManager.NO_OPERATION;
+						valuesTable[kony.sync.blobManager.status] = 100;
+						valuesTable[kony.sync.blobManager.localPath] = finalFilePath;
+					} else {
+						//failed writing file to the memory. error?
+						/*var noOfRetries = blobMeta[kony.sync.blobManager.retry] - 1;
+						 if(noOfRetries < 0) {
+						 valuesTable[kony.sync.blobManager.state] = kony.sync.blobManager.DOWNLOAD_FAILED;
+						 valuesTable[kony.sync.blobManager.status] = 0;
+						 } else {
+						 valuesTable[kony.sync.blobManager.retry] = noOfRetries;
+						 valuesTable[kony.sync.blobManager.state] = kony.sync.blobManager.DOWNLOAD_ACCEPTED;
+						 valuesTable[kony.sync.blobManager.status] = 0;
+						 }*/
+						valuesTable[kony.sync.blobManager.state] = kony.sync.blobManager.DOWNLOAD_FAILED;
+						valuesTable[kony.sync.blobManager.status] = 0;
+						success = false;
+					}
+				} else {
+					if (response.hasOwnProperty("errorResponse") && !response["errorResponse"]
+						&& response["errorResponse"].trim() !== "") {
+						//check if for the errorResponse, we have to retry or not.
+						if (kony.sync.blobManager.isRetryError(response["statusCode"], response["errorResponse"])) {
+							var noOfRetries = blobMeta[kony.sync.blobManager.retry] - 1;
+							if(noOfRetries < 0) {
+								valuesTable[kony.sync.blobManager.state] = kony.sync.blobManager.DOWNLOAD_FAILED;
+								valuesTable[kony.sync.blobManager.status] = 0;
+							} else {
+								valuesTable[kony.sync.blobManager.retry] = noOfRetries;
+								valuesTable[kony.sync.blobManager.state] = kony.sync.blobManager.DOWNLOAD_ACCEPTED;
+								valuesTable[kony.sync.blobManager.status] = 0;
+							}
+							//valuesTable[kony.sync.blobManager.state] = kony.sync.blobManager.DOWNLOAD_FAILED;
+							//valuesTable[kony.sync.blobManager.status] = 0;
+						}
+						else {
+							sync.log.trace("Not a retry error, so updating status as download failed for blobid:"+blobid);
+							valuesTable[kony.sync.blobManager.state] = kony.sync.blobManager.DOWNLOAD_FAILED;
+							valuesTable[kony.sync.blobManager.status] = 0;
+						}
+					} else {
+						//download failed. no error Response received.
+						sync.log.error("Download failed. Response from server is "+JSON.stringify(response));
+						valuesTable[kony.sync.blobManager.state] = kony.sync.blobManager.DOWNLOAD_FAILED;
+						valuesTable[kony.sync.blobManager.status] = 0;
+					}
+				}
+
+				kony.sync.blobManager.updateBlobManager(tx, blobid, valuesTable);
+
+			} else {
+				//user invoked operation after download request. No need to update anything.
+				success = false;
+				sync.log.trace("some other operation got invoked after download call. So, ignoring downloaded file");
+				if (response.hasOwnProperty["filePath"]) {
+					sync.util.deleteBlobFile(response["filePath"]);
+				}
+			}
+		} else {
+			//upload response parsing.
+			if(blobMeta[kony.sync.blobManager.state] === parseInt(response[kony.sync.requestState])) {
+
+				valuesTable = {};
+				if(success) {
+					valuesTable[kony.sync.blobManager.state] = kony.sync.blobManager.NO_OPERATION;
+				} else {
+					valuesTable[kony.sync.blobManager.state] = kony.sync.blobManager.UPLOAD_FAILED;
+				}
+				kony.sync.blobManager.updateBlobManager(tx, blobid, valuesTable);
+
+
+			} else {
+				//user invoked another operation after upload request.
+				sync.log.trace("some other operation got invoked after upload call");
+				success = false;
+			}
+		}
 	}
 
 	function single_transaction_success_callback() {
-		sync.log.trace("updateStatusAfterDownload -> transaction success");
+		sync.log.trace("updateStatusAfterOndemandJob -> transaction success");
+		updateResultCallback(success, finalFilePath);
 	}
 
 	function single_transaction_error_callback() {
-		sync.log.trace("updateStatusAfterDownload -> transaction failure");
+		sync.log.trace("updateStatusAfterOndemandJob -> transaction failure");
+		success = false;
+		updateResultCallback(success, finalFilePath);
 	}
 
 	var connection = kony.sync.getConnectionOnly(kony.sync.syncConfigurationDBName, kony.sync.syncConfigurationDBName);
@@ -1359,22 +1557,91 @@ kony.sync.blobManager.updateStatusAfterDownload = function(blobid, filePath, suc
 	}
 };
 
-
-
 /**
- * Method invokes download operation on the given record.
- * Method invokes download operation on the given record.
- * @param tx - transaction id
- * @param tableName - parent table name for the blob reocrd
- * @param columnName - column name of the binary field.
- * @param blobType - download response type . (FILE /BASE64).
- * @param pks - pk table which uniquely identifies the record
- * @param successNotifier - success callback for download request.
- * @param errorNotifier - error callback for download request.
- * @returns {null}
+ * Method is used to parse the statusCode and errorResponse that the sdk receives upon DownloadBinary
+ * and concludes if the download should be retried or not.
+ * @param statusCode - statusCode from http response
+ * @param errorResponse - errorResponse fetched from server
+ * @returns {boolean} - whether the error leads to retry or not.
  */
-kony.sync.blobManager.triggerDownload = function(tx, tableName, columnName, blobType, pks, successNotifier, errorNotifier) {
 
+kony.sync.blobManager.isRetryError = function(statusCode, errorResponse) {
+
+	var isRetryError = false;
+	sync.log.trace("isRetryError:statusCode: " + statusCode + " errorResponse:", errorResponse);
+
+	statusCode = parseInt(statusCode);
+	try {
+		errorResponse = JSON.parse(errorResponse);
+	} catch(err){
+		sync.log.error("kony.sync.blobManager.isRetryError parsing error response "+errorResponse);
+		return isRetryError;
+	}
+	//depending on the status code and error response, find out if the download should be retried!
+	switch (statusCode) {
+		case 404:
+			isRetryError = false;
+			break;
+		case 401:
+			if (errorResponse.hasOwnProperty("mfcode")) {
+				if (errorResponse["mfcode"] === "Auth-9") {
+					sync.log.trace("Got Auth-9 response");
+					isRetryError = true;
+				} else if(errorResponse["mfcode"] === "Gateway-5") {
+					sync.log.trace("Got Gateway-5 response");
+					isRetryError = true;
+				}
+			} else {
+				isRetryError = false;
+			}
+			break;
+		case 200:
+			if(errorResponse.hasOwnProperty("d") && errorResponse["d"].hasOwnProperty("mfcode")) {
+				if(errorResponse["d"]["mfcode"] === "Gateway-5") {
+					isRetryError = true;
+				}
+			}
+			break;
+		default:
+			isRetryError = false;
+	}
+	return isRetryError;
+};
+
+
+kony.sync.blobManager.updateParentWithBlobReference = function(tx, tableName, values, wcs, errorCallback) {
+	sync.log.trace("kony.sync.blobManager.updateParentWithBlobReference - entered with table "+tableName+" and values ",values);
+	sync.log.trace("kony.sync.blobManager.updateParentWithBlobReference - updating parent table with blobref.");
+	var query = kony.sync.qb_createQuery();
+	kony.sync.qb_update(query, tableName);
+	kony.sync.qb_set(query, values);
+	kony.sync.qb_where(query, wcs);
+	var query_compile = kony.sync.qb_compile(query);
+	var sql = query_compile[0];
+	var params = query_compile[1];
+	var resultset = kony.sync.executeSql(tx, sql, params, errorCallback);
+	if(resultset === false) {
+		sync.log.error("Error in updating the parent table with blobId ");
+	}
+
+	//update the history table as well..
+	sync.log.trace("kony.sync.blobManager.updateParentWithBlobReference - updating history table with blobref.");
+	query = kony.sync.qb_createQuery();
+	kony.sync.qb_update(query, tableName+kony.sync.historyTableName);
+	kony.sync.qb_set(query, values);
+	kony.sync.qb_where(query, wcs);
+	query_compile = kony.sync.qb_compile(query);
+	sql = query_compile[0];
+	params = query_compile[1];
+	resultset = kony.sync.executeSql(tx, sql, params, errorCallback);
+	if(resultset === false) {
+		sync.log.error("Error in updating the history table with blobId ");
+	}
+
+	return resultset;
+};
+
+kony.sync.blobManager.createBlobRecord = function(tx, tableName, columnName, errorCallback) {
 	var query = kony.sync.qb_createQuery();
 	var state = kony.sync.blobManager.DOWNLOAD_ACCEPTED;
 
@@ -1382,46 +1649,66 @@ kony.sync.blobManager.triggerDownload = function(tx, tableName, columnName, blob
 		localPath: "",
 		status: 0,
 		state: state,
-		type: "base64",
+		type: kony.sync.blobTypeBase64,
 		tableName : tableName,
 		columnName : columnName,
-		lastUpdatedTimeStamp: 'now()'
+		retry: kony.sync.maxRetries
 	});
 
 	kony.sync.qb_insert(query, kony.sync.blobStoreManagerTable);
 	var query_compile = kony.sync.qb_compile(query);
 	var sql = query_compile[0];
 	var params = query_compile[1];
-	resultset = kony.sync.executeSql(tx, sql, params, errorNotifier);
+	resultset = kony.sync.executeSql(tx, sql, params, errorCallback);
 
-	if (resultset === null || resultset === false)
-		return null;
+	if (resultset === null || resultset === false) {
+		sync.log.error("error in creating a entry in blobstore manager");
+		return;
+	}
 
 	var blobId = resultset.insertId;
-// {pktable : {key1 : value1,...}, response: filepath / base64}
-	kony.sync.blobManager.registerCallbacks(blobId,pks, blobType, successNotifier, errorNotifier);
-	query = kony.sync.qb_createQuery();
-	kony.sync.qb_update(query, tableName);
-    var setClause = {};
-    var blobMetaFieldKey = kony.sync.binaryMetaColumnPrefix+columnName;
-    setClause[blobMetaFieldKey] = blobId;
-    kony.sync.qb_set(query, setClause);
-    var wcs = [];
-    for (var key in pks) {
-        var wc = {};
-        wc.key = key;
-        wc.value = pks[key];
-        wcs.push(wc);
-    }
-    kony.sync.qb_where(query, wcs);
-    query_compile = kony.sync.qb_compile(query);
-    sql = query_compile[0];
-    params = query_compile[1];
-    resultset = kony.sync.executeSql(tx, sql, params);
-    if(resultset === false) {
-    	sync.log.error("Error in  kony.sync.blobManager.triggerDownload ");
-    }
-	sync.util.notifyOnDemandPolling();
+
+	return blobId;
+};
+
+
+/**
+ * Method invokes download operation on the given record.
+ * @param tx - transaction id
+ * @param tableName - parent table name for the blob reocrd
+ * @param columnName - column name of the binary field.
+ * @param blobType - download response type . (FILE /BASE64).
+ * @param pks - pk table which uniquely identifies the record
+ * @param successCallback - success callback for download request.
+ * @param errorCallback - error callback for download request.
+ * @returns {null}
+ */
+kony.sync.blobManager.triggerDownload = function(tx, tableName, columnName, pks, errorCallback) {
+
+	sync.log.trace("kony.sync.blobManager.triggerDownload - Entered function with tablename and columnname "+tableName+"--"+columnName);
+	var blobId = kony.sync.blobManager.createBlobRecord(tx, tableName, columnName, errorCallback);
+	if(!blobId) {
+		return;
+	}
+	sync.log.trace("successfully created an entry in blobstore manager");
+	var setClause = {};
+	var blobMetaFieldKey = kony.sync.binaryMetaColumnPrefix+columnName;
+	setClause[blobMetaFieldKey] = blobId;
+
+	var wcs = [];
+	for (var key in pks) {
+		var wc = {};
+		wc.key = key;
+		wc.value = pks[key];
+		wcs.push(wc);
+	}
+	resultset = kony.sync.blobManager.updateParentWithBlobReference(tx, tableName, setClause, wcs, errorCallback);
+	if(resultset === false || resultset === null) {
+		return;
+	}
+	sync.log.trace("updated parent table with the blod id.");
+
+	sync.util.notifyToPrepareJobs();
 };
 
 /**
@@ -1430,10 +1717,10 @@ kony.sync.blobManager.triggerDownload = function(tx, tableName, columnName, blob
  * @param blobid - id which uniquely identifies the blob
  * @param blobType - download response type (FILE/ base64).
  * @param pks - pk table which uniquely identifies the record.
- * @param successNotifier - success callback for download request.
- * @param errorNotifier - error callback for download request.
+ * @param successCallback - success callback for download request.
+ * @param errorCallback - error callback for download request.
  */
-kony.sync.blobManager.retryDownload = function(tx, blobid, blobType, pks, successNotifier, errorNotifier) {
+kony.sync.blobManager.retryDownload = function(tx, blobid, blobType, pks, successCallback, errorCallback) {
 	//reset the state and status to 0% and DOWNLOAD_ACCEPTED
 
 	var state = kony.sync.blobManager.DOWNLOAD_ACCEPTED;
@@ -1442,42 +1729,51 @@ kony.sync.blobManager.retryDownload = function(tx, blobid, blobType, pks, succes
 	valuesTable[kony.sync.blobManager.state] = state;
 	valuesTable[kony.sync.blobManager.status] = 0;
 
-	kony.sync.blobManager.updateBlobManager(tx, blobid, valuesTable, errorNotifier);
-	kony.sync.blobManager.registerCallbacks(blobid, pks, blobType, successNotifier, errorNotifier);
+	kony.sync.blobManager.updateBlobManager(tx, blobid, valuesTable, errorCallback);
 
-	sync.util.notifyOnDemandPolling();
+	//increment total number of download jobs..
+	kony.sync.incrementTotalJobs(true);
+
+	kony.sync.blobManager.registerCallbacks(blobid, pks, blobType, successCallback, errorCallback);
+
+	sync.util.notifyToPrepareJobs();
 
 };
 
 
-
 kony.sync.blobManager.getBlobInline = function(tx, blobid, blobType, tableName, columnName, config, pks,
-												 successNotifier, errorNotifier) {
+												 successCallback, errorCallback) {
 
-	var blobMeta = kony.sync.blobManager.getBlobMetaDetails(tx, blobid, errorNotifier);
+	var blobMeta = kony.sync.blobManager.getBlobMetaDetails(tx, blobid, errorCallback);
 
+	if(!kony.sync.isNullOrUndefined(blobMeta) && blobMeta !== false) {
+		var possibleStates = [kony.sync.blobManager.NO_OPERATION, kony.sync.blobManager.UPLOAD_ACCEPTED,
+			kony.sync.blobManager.UPLOAD_IN_PROGRESS, kony.sync.blobManager.UPLOAD_FAILED];
+
+		var state = blobMeta[kony.sync.blobManager.state];
 	if(blobMeta[kony.sync.blobManager.status] === 100 &&
-		blobMeta[kony.sync.blobManager.state] === kony.sync.blobManager.NO_OPERATION) {
+			possibleStates.indexOf(state) !== -1) {
 		//base64 exists. return back the required details.
 		var successResponse = {};
 		successResponse.pkTable = pks;
 
 		if (blobType === kony.sync.BlobType.FILE) {
 			//return blobMeta[kony.sync.blobManager.localPath];
-			successResponse.filePath = blobMeta[kony.sync.blobManager.localPath];
-			successNotifier(successResponse);
+			var decodedFilePath = sync.util.decodeBase64File(blobMeta[kony.sync.blobManager.localPath]);
+			successResponse.filePath = decodedFilePath;
+			successCallback(successResponse);
 
 		} else {
-			var base64String = sync.util.getallbase64([blobMeta[kony.sync.blobManager.localPath]]);
+			var base64String = sync.util.getBase64FromFiles([blobMeta[kony.sync.blobManager.localPath]]);
 			if (base64String[0].length > 0) {
 				successResponse.base64 = base64String[0];
-				successNotifier(successResponse);
+				successCallback(successResponse);
 			} else {
 				//update the state of the file stating the file doesn't exist.
 				var valuesTable = {};
 				valuesTable.state = kony.sync.blobManager.FILE_DOESNOT_EXIST;
 
-				kony.sync.blobManager.updateBlobManager(tx, blobid, valuesTable, errorNotifier);
+				kony.sync.blobManager.updateBlobManager(tx, blobid, valuesTable, errorCallback);
 
 				//throw an error saying file doesn't exist.
 				var error = kony.sync.getErrorTable(
@@ -1485,19 +1781,19 @@ kony.sync.blobManager.getBlobInline = function(tx, blobid, blobType, tableName, 
 					kony.sync.getErrorMessage(kony.sync.errorCodeBlobFileDoesnotExist)
 				);
 
-				errorNotifier(error);
+				kony.sync.verifyAndCallClosure(errorCallback, error);
+
 			}
 		}
 	} else {
-		//invalid state..
-		//TODO - what should be done. - clean up?
+		
 		var error = kony.sync.getErrorTable(
 			kony.sync.errorCodeBlobInvalidState,
 			kony.sync.getErrorMessage(kony.sync.errorCodeBlobInvalidState)
 		);
 
-		errorNotifier(error);
-
+		kony.sync.verifyAndCallClosure(errorCallback, error);
+	}
 	}
 };
 /**
@@ -1509,80 +1805,109 @@ kony.sync.blobManager.getBlobInline = function(tx, blobid, blobType, tableName, 
  * @param columnName - binary column to which the record refers to.
  * @param config - configuration parameters for download ( forceDownload).
  * @param pks - pk table that uniquely identies the record in parent table.
- * @param successNotifier - success callback for fetch
- * @param errorNotifier - error callback for fetch,
+ * @param successCallback - success callback for fetch
+ * @param errorCallback - error callback for fetch,
  * @returns {*}
  */
 kony.sync.blobManager.getBlobOnDemand = function(tx, blobid, blobType, tableName, columnName, config, pks,
-												 successNotifier, errorNotifier) {
+												 successCallback, errorCallback) {
 	//no blob id. trigger download
-	if(kony.sync.isNullOrUndefined(blobid)) {
-		kony.sync.blobManager.triggerDownload(tx, tableName, columnName,blobType, pks ,successNotifier, errorNotifier);
+	if(blobid === kony.sync.blobRefNotDefined) {
+		sync.log.trace("triggering download --> getBlobOnDemand");
+		kony.sync.blobManager.registerCallbacks(blobid, pks, blobType, successCallback, errorCallback);
+
+		kony.sync.blobManager.triggerDownload(tx, tableName, columnName, pks, errorCallback);
+		//increment total number of download jobs..
+		kony.sync.incrementTotalJobs(true);
+
 	} else {
 		//check if the file is available.
-		var blobMeta = kony.sync.blobManager.getBlobMetaDetails(tx, blobid, errorNotifier);
+		sync.log.trace("fetching from blobStoreManager --> getBlobOnDemand");
+		var blobMeta = kony.sync.blobManager.getBlobMetaDetails(tx, blobid, errorCallback);
 
-		if(blobMeta.hasOwnProperty(kony.sync.blobManager.state) &&
-			blobMeta.hasOwnProperty(kony.sync.blobManager.status)) {
+		if(!kony.sync.isNullOrUndefined(blobMeta) && blobMeta !== false) {
+			//possible states of the file to read the base64.
+			var possibleStates = [kony.sync.blobManager.NO_OPERATION, kony.sync.blobManager.UPLOAD_ACCEPTED,
+				kony.sync.blobManager.UPLOAD_IN_PROGRESS, kony.sync.blobManager.UPLOAD_FAILED];
+
+			var state = blobMeta[kony.sync.blobManager.state];
+
 			var forceDownload = false;
-
-			if(!kony.sync.isNullOrUndefined(config) && config.hasOwnProperty('forceDownload'))  {
+			sync.log.trace("blob meta from blobStoreManager.." + JSON.stringify(blobMeta));
+			if(!kony.sync.isNullOrUndefined(config) && config.hasOwnProperty(kony.sync.forceDownload))  {
 				forceDownload = config.forceDownload;
 			}
+			sync.log.trace("forceDownload "+forceDownload+ " -> getBlobOnDemand");
 			//if state is No_operation and status is 100, file exists. read it and return.
-			if(blobMeta[kony.sync.blobManager.status] === 100 &&
-				blobMeta[kony.sync.blobManager.state] === kony.sync.blobManager.NO_OPERATION) {
+			if(blobMeta[kony.sync.blobManager.status] === kony.sync.maxFilePercent &&
+				possibleStates.indexOf(state) !== -1) {
 				//base64 exists. return back the required details.
 				if(!forceDownload) {
 					var successResponse = {};
 					successResponse.pkTable = pks;
+					//if requested response type is FILE, return the filePath.
 					if (blobType === kony.sync.BlobType.FILE) {
-						//return blobMeta[kony.sync.blobManager.localPath];
-
-						successResponse.filePath = blobMeta[kony.sync.blobManager.localPath];
-						successNotifier(successResponse);
-						return;
+						var decodedFilePath = sync.util.decodeBase64File(blobMeta[kony.sync.blobManager.localPath]);
+						successResponse.filePath = decodedFilePath;
+						sync.log.trace("response to the user with filepath "+JSON.stringify(successResponse));
+						successCallback(successResponse);
 					} else {
-						var base64String = sync.util.getallbase64([blobMeta[kony.sync.blobManager.localPath]])
+						//else read the base64 string from the file.
+						var base64String = sync.util.getBase64FromFiles([blobMeta[kony.sync.blobManager.localPath]])
 						if (base64String[0].length > 0) {
 							successResponse.base64 = base64String[0];
-							successNotifier(successResponse);
-							return;
+							sync.log.trace("response to the user with base64 string "+JSON.stringify(successResponse));
+							successCallback(successResponse);
+
 						} else {
 							var valuesTable = {};
 							valuesTable.state = kony.sync.blobManager.FILE_DOESNOT_EXIST;
 
-							kony.sync.blobManager.updateBlobManager(tx, blobid, valuesTable, errorNotifier);
-
+							kony.sync.blobManager.updateBlobManager(tx, blobid, valuesTable, errorCallback);
+							sync.log.error("requested file does not exist -> getBlobOnDemand");
 							//throw an error saying file doesn't exist.
 							var error = kony.sync.getErrorTable(
-								kony.sync.errorCodeBlobFileDoesnotExist,
-								kony.sync.getErrorMessage(kony.sync.errorCodeBlobFileDoesnotExist)
+								kony.sync.errorCodeBlobFileDoesnotExistOnDemand,
+								kony.sync.getErrorMessage(kony.sync.errorCodeBlobFileDoesnotExistOnDemand)
 							);
-
-							errorNotifier(error);
-							return;
+							errorCallback(error);
 						}
 					}
 				} else {
 					//retrigger download..
-					kony.sync.blobManager.retryDownload(tx, blobid, blobType, pks, successNotifier, errorNotifier);
+					sync.log.trace("forceDownload is true. ReTriggering download -> getBlobOnDemand");
+					kony.sync.blobManager.retryDownload(tx, blobid, blobType, pks, successCallback, errorCallback);
 				}
 			}
 			//if already download requested on that record, throw an error..
 			else if(blobMeta[kony.sync.blobManager.state] === kony.sync.blobManager.DOWNLOAD_ACCEPTED ||
 				blobMeta[kony.sync.blobManager.state] === kony.sync.blobManager.DOWNLOAD_IN_PROGRESS) {
 				//throw an error download already requested...
+				sync.log.error("Download request is already in queue -> getBlobOnDemand");
 				var error = kony.sync.getErrorTable(
 					kony.sync.errorCodeDownloadAlreadyInQueue,
 					kony.sync.getErrorMessage(kony.sync.errorCodeDownloadAlreadyInQueue)
 				);
-				errorNotifier(error);
-				return;
+				errorCallback(error);
 
-			} else {
+			}
+			//if already ony operation is in progress on the blob entry, download is not allowed.
+			else if (blobMeta[kony.sync.blobManager.state] === kony.sync.blobManager.UPDATE_PROCESSING ||
+				blobMeta[kony.sync.blobManager.state] === kony.sync.blobManager.DELETE_PROCESSING) {
+				sync.log.error("User performing operation..-> getBlobOnDemand");
+				var error = kony.sync.getErrorTable(
+					kony.sync.errorCodeInvalidStateForDownload,
+					kony.sync.getErrorMessage(kony.sync.errorCodeInvalidStateForDownload,
+						kony.sync.blobManager.states[blobMeta[kony.sync.blobManager.state]])
+				);
+				errorCallback(error);
+
+			}
+			else {
 				//retriger download
-				kony.sync.blobManager.retryDownload(tx, blobid, blobType, pks,  successNotifier, errorNotifier);
+				//blob entry exists but not the file.
+				sync.log.trace("retriggering download -> getBlobOnDemand");
+				kony.sync.blobManager.retryDownload(tx, blobid, blobType, pks,  successCallback, errorCallback);
 			}
 		}
 	}
@@ -1601,29 +1926,18 @@ kony.sync.blobManager.getBlobMetaDetails = function(tx, blobid, errorCallback) {
 		value : blobid
 	}];
 
-	var query = kony.sync.qb_createQuery();
-	kony.sync.qb_from(query, kony.sync.blobStoreManagerTable);
-
-	kony.sync.qb_where(query, wcs);
-	kony.sync.qb_select(query, [kony.sync.blobManager.state, kony.sync.blobManager.status,
-		kony.sync.blobManager.localPath]);
-
-	var query_compile = kony.sync.qb_compile(query);
-	var sql = query_compile[0];
-	var params = query_compile[1];
+	var requiredColumns = [kony.sync.blobManager.state, kony.sync.blobManager.status,
+		kony.sync.blobManager.localPath, kony.sync.blobManager.retry];
 
 	var response = {};
-
-	resultset = kony.db.executeSql(tx, sql, params, function(err) {
-		kony.print("err in fetch " + JSON.stringify(err));
-		errorCallback(err);
-	});
+	resultset = kony.sync.queryTable(tx, kony.sync.blobStoreManagerTable, requiredColumns, wcs);
 
 	if(resultset !== null && resultset !== false) {
 		var rowItem = kony.db.sqlResultsetRowItem(tx, resultset, 0);
 		response.state = rowItem[kony.sync.blobManager.state];
 		response.status = rowItem[kony.sync.blobManager.status];
 		response.localPath = rowItem[kony.sync.blobManager.localPath];
+		response.retry = rowItem[kony.sync.blobManager.retry];
 	}
 	return response;
 };
@@ -1632,36 +1946,43 @@ kony.sync.blobManager.getBlobMetaDetails = function(tx, blobid, errorCallback) {
  * This method is used to get the fetch the rows from blob tables and populate the ondemand download request
  * @return
  */
-kony.sync.blobManager.getNextOnDemandJob = function(){
-	var successcallback = sync.util.processjobs;
+kony.sync.blobManager.prepareJobs = function(){
+	//incase current sync config params are undefined, retrieve them from local storage.
+
 	var errorcallback = function(err) {
-		kony.print("error callback in getNextOnDemandJob "+JSON.stringify(err));
-	}
-	sync.log.trace("Entering kony.sync.blobManager.getNextOnDemandJob ");
-
+		sync.log.error("Error occured in prepareJobs "+ JSON.stringify(err));
+	};
+	
+	var successcallback = kony.sync.blobManager.onDemandManager.setJobs;
 	var payloadList = [];
-
+	
 	var isError = false;
 	var errorInfo = {};
 
+	sync.log.trace("Entering kony.sync.blobManager.prepareJobs ");
+
 	function single_transaction_success_callback() {
+		sync.log.trace("Entering kony.sync.blobManager.prepareJobs->single_select_transaction_success");
 		if(isError) {
+			sync.log.error("Error occured in single_transaction_success_callback " + JSON.stringify(errorInfo))
 			kony.sync.verifyAndCallClosure(errorcallback, errorInfo);
 			return;
 		}
-		sync.log.trace("Entering kony.sync.blobManager.getNextOnDemandJob->single_select_transaction_success");
-
-		if (!kony.sync.isNullOrUndefined(kony.sync.currentSyncConfigParams) && !kony.sync.isNullOrUndefined(kony.sync.currentSyncConfigParams[kony.sync.authTokenKey])) {
+		if (!kony.sync.isNullOrUndefined(kony.sync.currentSyncConfigParams) &&
+					!kony.sync.isNullOrUndefined(kony.sync.currentSyncConfigParams[kony.sync.authTokenKey])) {
 			if (!kony.sync.isMbaasEnabled) {
 				kony.sync.isMbaasEnabled = true;
 			}
+			sync.log.trace("Refreshing claims token");
 			kony.sdk.claimsRefresh(claimsRefreshSuccessCallBack, claimsRefreshFailureCallBack);
 		} else {
+			sync.log.trace("Calling successcallback with payload list "+ JSON.stringify(payloadList));
 			kony.sync.verifyAndCallClosure(successcallback, payloadList);
 		}
 	}
 
 	function claimsRefreshSuccessCallBack() {
+		sync.log.trace("Entering kony.sync.blobManager.prepareJobs->claimsRefreshSuccessCallBack ");
 		var currentClaimToken = kony.sdk.getCurrentInstance().currentClaimToken;
 		if (kony.sync.currentSyncConfigParams[kony.sync.authTokenKey] != currentClaimToken) {
 			kony.sync.currentSyncConfigParams[kony.sync.authTokenKey] = currentClaimToken;
@@ -1674,20 +1995,24 @@ kony.sync.blobManager.getNextOnDemandJob = function(){
 				payload.httpheaders["X-Kony-Authorization"] = currentClaimToken;
 			}
 		}
+		sync.log.trace("Calling successcallback with payloadlist "+ JSON.stringify(payloadList));
 		kony.sync.verifyAndCallClosure(successcallback, payloadList);
 	}
 
 	function claimsRefreshFailureCallBack(res) {
+		sync.log.error("kony.sync.blobManager.prepareJobs->claimsRefreshFailureCallBack " + JSON.stringify(res));
 		kony.sync.verifyAndCallClosure(errorcallback, res);
 	}
 
 	function single_transaction_error_callback() {
-		sync.log.error("Entering kony.sync.blobManager.getNextOnDemandJob->single_select_transaction_failed");
+		sync.log.error("Entering kony.sync.blobManager.prepareJobs->single_select_transaction_failed");
 		kony.sync.verifyAndCallClosure(errorcallback);
 	}
 
-	function populateOnDemandPayload(tx, rowItemsList) {
+	function populateOnDemandPayload(tx, rowItemsList, isDownload) {
 		try {
+			sync.log.trace("Entering kony.sync.blobManager.prepareJobs->populateOnDemandPayload isDOwnload "+isDownload);
+			sync.log.trace("populate on demand payload -> rowItemsList "+JSON.stringify(rowItemsList));
 			var rowItemsListLength = rowItemsList.length;
 			var binaryMetaColumnName = null;
 			var binaryColumnName = null;
@@ -1698,80 +2023,101 @@ kony.sync.blobManager.getNextOnDemandJob = function(){
 			var sql = null;
 			var params = null;
 			var resultSet = null;
-			var resultSetLength = null;
 			var whereClause = [];
 			var queryOpenBrace = true;
 			var blobId = null;
-			//Iterating over the rows which have status as 0% and state as DOWNLOAD_ACCEPTED and selecting the binaryrow column which has
-			// payload like headers etc etc and inserting into payload list
+			//Iterating over the on demand download/upload rows
 			for(var j=0; j < rowItemsListLength; j++) {
 				rowItem = rowItemsList[j];
+				blobId = rowItem[kony.sync.blobManager.id];
 				binaryColumnName = rowItem[kony.sync.blobManager.columnName];
 				binaryTableName = rowItem[kony.sync.blobManager.tableName];
-				query = kony.sync.qb_createQuery();
 				var scope = kony.sync.scopes[kony.sync.scopes.syncTableScopeDic[binaryTableName]];
-				var columns = kony.sync.createClone( scope.syncTableDic[binaryTableName].Pk_Columns );
+				var columns = kony.sync.createClone(scope.syncTableDic[binaryTableName].Pk_Columns);
 				columns.push(binaryColumnName);
-				kony.sync.qb_select(query, columns);
-				kony.sync.qb_from(query, binaryTableName);
-				wcs = [];
+				if(!isDownload) {
+					columns.push(kony.sync.mainTableChangeTypeColumn);
+				}
+				var blobWhereClause = [];
 				binaryMetaColumnName = kony.sync.binaryMetaColumnPrefix + binaryColumnName;
-				blobId = rowItem[kony.sync.blobManager.id];
-				kony.table.insert(wcs, {key:binaryMetaColumnName,value:blobId,optype: "EQ"});
-				kony.sync.qb_where(query, wcs);
+				kony.table.insert(blobWhereClause, {key:binaryMetaColumnName,value:blobId,optype: "EQ"});
+
+				resultSet = kony.sync.queryTable(tx, binaryTableName, columns, blobWhereClause);
+				if(resultSet === false) {
+					sync.log.error("Error executing query", sql, " params ", JSON.stringify(params));
+					isError = true;
+					return;
+				}
+				if(resultSet !== null &&  resultSet.rows.length > 0) {
+					var data = null;
+					for(var k=0; k<resultSet.rows.length; k++) {
+						data = kony.db.sqlResultsetRowItem(tx, resultSet, k);
+						//check if there is context in the binarycolumn. \
+						if(isDownload) {
+							if(data[binaryColumnName] === kony.sync.blobRefNotDefined){
+								sync.log.error("NULL found in binary data column. ");
+								isError = true;
+								return;
+							}
+						}
+						var payload = populateOnDemandParams(tx, blobId, binaryColumnName, binaryTableName, data, isDownload);
+						
+						payloadList.push(payload);
+					}
+				}
+				var mp = {};
+				mp[kony.sync.queryKey] = kony.sync.blobManager.id;
+				mp[kony.sync.queryValue] = rowItem[kony.sync.blobManager.id];
+				mp[kony.sync.optype] = "EQ";
+				mp[kony.sync.comptype] = "OR";
+				if(j===0) {
+					mp[kony.sync.openbrace] = true;
+				}
+				if(j=== (rowItemsListLength-1) ) {
+					mp[kony.sync.closebrace] = true;
+				}
+				whereClause.push(mp);
+			}
+			//Update blobstoremanager table with DOWNLOAD_INPROGRESS/UPLOAD_INPROGRESS FOR corresponding ids
+
+			//if there are any jobs. 
+			if(whereClause.length > 0) {
+				query = kony.sync.qb_createQuery();
+				kony.sync.qb_update(query, kony.sync.blobStoreManagerTable);
+				var setClause = {};
+				
+				//TODO - add a check before updating the state. 
+				if(isDownload) {
+					setClause[kony.sync.blobManager.state] = kony.sync.blobManager.DOWNLOAD_IN_PROGRESS;
+				} else {
+					setClause[kony.sync.blobManager.state] = kony.sync.blobManager.UPLOAD_IN_PROGRESS;
+				}
+				kony.sync.qb_set(query, setClause);
+				kony.sync.qb_where(query, whereClause);
 				query_compile = kony.sync.qb_compile(query);
 				sql = query_compile[0];
 				params = query_compile[1];
+				sync.log.trace("Executing query for updating states ", sql, " params ", JSON.stringify(params));
+            
 				resultSet = kony.sync.executeSql(tx, sql, params);
 				if(resultSet === false) {
 					isError = true;
 					return;
 				}
-				if(resultSet !== null &&  resultSet.rows.length > 0) {
-					resultSetLength = resultSet.rows.length;
-					var data = null;
-					for(var k=0; k<resultSetLength; k++) {
-						data = kony.db.sqlResultsetRowItem(tx, resultSet, k);
-						var payload = populateOnDemandParams(tx, binaryTableName, binaryColumnName, data, blobId);
-						payloadList.push(payload);
-					}
-				}
-				var mp = {};
-				mp["key"] = kony.sync.blobManager.id;
-				mp["value"] = rowItem[kony.sync.blobManager.id];
-				mp["optype"] = "EQ";
-				mp["comptype"] = "OR";
-				if(j===0) {
-					mp["openbrace"] = true;
-				}
-				if(j=== (rowItemsListLength-1) ) {
-					mp["closebrace"] = true;
-				}
-				whereClause.push(mp);
-			}
-			//Update blobstoremanager table with DOWNLOAD_INPROGRESS FOR corresponding ids
-			query = kony.sync.qb_createQuery();
-			kony.sync.qb_update(query, kony.sync.blobStoreManagerTable);
-			var setClause = {};
-			setClause[kony.sync.blobManager.state] = kony.sync.blobManager.DOWNLOAD_IN_PROGRESS;
-			kony.sync.qb_set(query, setClause);
-			kony.sync.qb_where(query, whereClause);
-			query_compile = kony.sync.qb_compile(query);
-			sql = query_compile[0];
-			params = query_compile[1];
-			resultSet = kony.sync.executeSql(tx, sql, params);
-			if(resultSet === false) {
-				isError = true;
-				return;
 			}
 		}
 		catch(err) {
 			isError = true;
+			//to avoid the thread to wait in case of exception.
+			kony.sync.blobManager.onDemandManager.setJobs(null);
+			sync.log.trace("catch block for the error-> populateOnDemandPayload "+JSON.stringify(err));
 			errorInfo = err;
 		}
 	}
 
-	function populateOnDemandParams(tx, tableName, binaryColumnName, data, blobIndex) {
+	function populateOnDemandParams(tx, blobIndex, binaryColumnName, tableName, data, isDownload) {
+		sync.log.trace("Entering kony.sync.blobManager.prepareJobs->populateOnDemandParams ");
+		sync.log.trace("params to the method are blobIdex "+blobIndex+" column "+tableName+"."+binaryColumnName);
 		var job = {};
 		var params = {};
 		var scopeName = kony.sync.scopes.syncTableScopeDic[tableName];
@@ -1780,85 +2126,135 @@ kony.sync.blobManager.getNextOnDemandJob = function(){
 		params.strategy = kony.sync.scopes[scopeName][kony.sync.syncStrategy];
 		params.instanceid = kony.sync.getInstanceID();
 		params.clientid = kony.sync.getDeviceID();
-		params.appVersion = kony.sync.currentSyncConfigParams.appVersion;
-		params.url = kony.sync.getDownloadBinaryURL();
-		//This will populate userid, password, appid, sessionid, requestnumber and headers with content-type, authtoken in params.httpheaders
+		params.appVersion = kony.sync.configVersion;
+		if(isDownload) {
+			params.url = kony.sync.getDownloadBinaryURL();
+		} else {
+			params.url = kony.sync.getUploadBinaryURL();
+		}
+		//This will populate userid, password, appid, sessionid, requestnumber
 		kony.sync.commonServiceParams(params);
 		params.enablebatching = "true";
+		
+		var syncContext = getLastSyncContext(tx, scopeName);
+		//TODO - do we require these params in job?
 		/*
 		 if (!kony.sync.isNull(kony.sync.currentSyncConfigParams[kony.sync.networkTimeOutKey])) {
-		 params.httpconfig = {
-		 timeout: kony.sync.currentSyncConfigParams[kony.sync.networkTimeOutKey]
-		 };
+		 	params.httpconfig = {timeout: kony.sync.currentSyncConfigParams[kony.sync.networkTimeOutKey]};
 		 }
 		 */
-		params.dataMode = "raw";
-		params.name = "downloadBianry/PK+EmptyBinaryData";
-		if (!kony.sync.isNullOrUndefined(kony.sync.currentSyncConfigParams[kony.sync.sessionTasks]) &&
-			!kony.sync.isNullOrUndefined(kony.sync.currentSyncConfigParams[kony.sync.sessionTasks][scopeName])) {
-			params[kony.sync.sessionTaskUploadErrorPolicy] = kony.sync.currentSyncConfigParams[kony.sync.sessionTasks][scopeName][kony.sync.sessionTaskUploadErrorPolicy];
+//		if (!kony.sync.isNullOrUndefined(kony.sync.currentSyncConfigParams[kony.sync.sessionTasks]) &&
+//			!kony.sync.isNullOrUndefined(kony.sync.currentSyncConfigParams[kony.sync.sessionTasks][scopeName])) {
+//			params[kony.sync.sessionTaskUploadErrorPolicy] = kony.sync.currentSyncConfigParams[kony.sync.sessionTasks][scopeName][kony.sync.sessionTaskUploadErrorPolicy];
+//		}
+//		var syncContext = getLastSyncContext(tx, scopeName);
+//		sync.log.trace("populate on demand params -synccontext "+JSON.stringify(syncContext));
+//		if(!kony.sync.isNullOrUndefined(syncContext)) {
+//			var lastsynctime = syncContext[kony.sync.metaTableSyncTimeColumn];
+//			var upgradeSchemaLastSyncTime = syncContext[kony.sync.metaTableSchemaUpgradeSyncTimeColumn];
+//			if (kony.sync.schemaUpgradeDownloadPending) {
+//				params.tickcount = upgradeSchemaLastSyncTime;
+//				params.uppertickcount = lastsynctime;
+//				if (!kony.sync.isNullOrUndefined(kony.sync.schemaUpgradeContext)) {
+//					params.upgradecontext = kony.sync.schemaUpgradeContext;
+//				}
+//			} else {
+//				params.tickcount = lastsynctime;
+//			}
+//		}
+		var ondemandrequest = getOnDemandRequest(tx, syncContext, scopeName, tableName, data, isDownload, blobIndex, binaryColumnName);
+		sync.log.trace("populate on demand params -synccontext "+ondemandrequest);
+		if(isDownload) {
+			params.downloadrequest = ondemandrequest;
+			job[kony.sync.requestState] = kony.sync.blobManager.DOWNLOAD_IN_PROGRESS;
+			job[kony.sync.requestType] = kony.sync.isDownload;
+		
+		} else {
+			params.uploadrequest = ondemandrequest;
+			job[kony.sync.requestState] = kony.sync.blobManager.UPLOAD_IN_PROGRESS;
+			job[kony.sync.requestType] = kony.sync.isUpload;
 		}
-		var syncContext = getLastSyncContext(tx, scopeName);
-		if(!kony.sync.isNullOrUndefined(syncContext)) {
-			var lastsynctime = syncContext[kony.sync.metaTableSyncTimeColumn];
-			var upgradeSchemaLastSyncTime = syncContext[kony.sync.metaTableSchemaUpgradeSyncTimeColumn];
-			if (kony.sync.schemaUpgradeDownloadPending) {
-				params.tickcount = upgradeSchemaLastSyncTime;
-				params.uppertickcount = lastsynctime;
-				if (!kony.sync.isNullOrUndefined(kony.sync.schemaUpgradeContext)) {
-					params.upgradecontext = kony.sync.schemaUpgradeContext;
-				}
-			} else {
-				params.tickcount = lastsynctime;
-			}
+		job[kony.sync.params] = params;
+		job[kony.sync.httpHeaders] = kony.sync.createClone(params[kony.sync.httpHeaders]);
+		if(isDownload) {
+			job[kony.sync.url] = kony.sync.getDownloadBinaryURL();
+		} else {
+			job[kony.sync.url] = kony.sync.getUploadBinaryURL();
 		}
-		params.downloadrequest = getDownloadRequest(tx, syncContext, scopeName, tableName, data);
-		job["params"] = params;
-		job["httpheaders"] = kony.sync.createClone(params["httpheaders"]);
-		job["url"] = kony.sync.getDownloadBinaryURL();
-		job["blobid"] = blobIndex;
-		job["blobname"]= binaryColumnName;
-		delete params["httpheaders"];
+		job[kony.sync.blobId] = blobIndex;
+		job[kony.sync.blobName]= binaryColumnName;
+		delete params[kony.sync.httpHeaders];
+		sync.log.info("job details are "+JSON.stringify(job));
 		return job;
 	}
 
-	function getDownloadRequest(tx, downloadContext, scopename, tableName, binaryColumnData) {
+	function getOnDemandRequest(tx, downloadContext, scopename, tableName, binaryColumnData, isDownload, blobIndex,
+	binaryColumnName) {
+
+		sync.log.trace("Entering kony.sync.blobManager.prepareJobs->getOnDemandRequest");
 		var resultSet = [];
 		var result = {};
 		var metaData = {};
-		metaData["type"] = tableName;
-		result["metadata"] = metaData;
-		var scope = kony.sync.scopes[kony.sync.scopes.syncTableScopeDic[tableName]];
-		var columns = scope.syncTableDic[tableName].Pk_Columns;
-		for(var column in binaryColumnData) {
-			result[column] = binaryColumnData[column];
+		metaData[kony.sync.type] = tableName;
+		
+		//add the changetype for upload request.
+		if(!isDownload) {
+			metaData[kony.sync.syncStatusColumn] = "update";
 		}
+		result[kony.sync.metadata] = metaData;
+		result[kony.sync.konySyncReplaySequence] = 1;
+		if(!isDownload) {
+			delete binaryColumnData[kony.sync.mainTableChangeTypeColumn];
+		}
+
+		for(var column in binaryColumnData) {
+			if(column === binaryColumnName) {
+				if (isDownload) {
+					result[column] = binaryColumnData[column];
+				} else {
+					//read the filepath.
+					var blobMeta = kony.sync.blobManager.getBlobMetaDetails(tx, blobIndex, function(err){
+					});
+					//if the blobMeta has filePath.
+					//from the native, we read base64 content and add it to payload.
+					if(!kony.sync.isNullOrUndefined(blobMeta[kony.sync.blobManager.localPath])) {
+						result["filePath"] = blobMeta[kony.sync.blobManager.localPath];
+					}
+				}
+			} else {
+				result[column] = binaryColumnData[column];
+			}
+		}
+
 		resultSet.push(result);
+
+		//creating the d object.
 		var d = {};
-		d["results"] = resultSet;
-		d["sync"] = "not implemented";
-		d["scopeName"] = scopename;
-		d["serverBlob"] = downloadContext[kony.sync.metaTableSyncTimeColumn];
-		d["clientid"] = kony.sync.getDeviceID();
-		d["moreChangesAvailable"] = false;
-		var downloadRequest = {};
-		downloadRequest["d"] = d;
-		return downloadRequest;
+		d[kony.sync.syncobjects] = resultSet;
+		d[kony.sync.sync] = "not implemented";
+		d[kony.sync.blobSyncScope] = scopename;
+		d[kony.sync.serverBlob] = downloadContext[kony.sync.metaTableSyncTimeColumn];
+		d[kony.sync.clientId] = kony.sync.getDeviceID();
+		d[kony.sync.moreChangesAvailable] = false;
+		d[kony.sync.SequenceNumber] = 0;
+		var request = {};
+		request["d"] = d;
+		sync.log.trace("request object in getOnDemandRequest --> "+JSON.stringify(request));
+		return request;
 	}
 
 	function getLastSyncContext(tx, scopename) {
+		sync.log.trace("Entering kony.sync.blobManager.prepareJobs->getLastSyncContext");
 		var scope = kony.sync.scopes[scopename];
 		var datasource = scope[kony.sync.scopeDataSource];
-		var query = kony.sync.qb_createQuery();
-		kony.sync.qb_select(query, null);
-		kony.sync.qb_from(query, kony.sync.metaTableName);
-		kony.sync.qb_where(query, [ { key : kony.sync.metaTableScopeColumn, value : scopename },
-			{ key : kony.sync.metaTableFilterValue, value : "no filter"} ]);
-		var query_compile = kony.sync.qb_compile(query);
-		var sql = query_compile[0];
-		var params = query_compile[1];
-		var resultSet = kony.sync.executeSql(tx, sql, params);
+		var whereClause = [
+			{ key : kony.sync.metaTableScopeColumn, value : scopename },
+			{ key : kony.sync.metaTableFilterValue, value : "no filter"}
+		];
+
+		var resultSet = kony.sync.queryTable(tx, kony.sync.metaTableName, null, whereClause);
 		if(resultSet === false) {
+			sync.log.error("Error executing query on table "+kony.sync.metaTableName);
 			isError = true;
 			return;
 		}
@@ -1869,36 +2265,48 @@ kony.sync.blobManager.getNextOnDemandJob = function(){
 		return rowItem;
 	}
 
+	function getNextOnDemandRows(tx, isDownload) {
+		sync.log.trace("Entering kony.sync.blobManager.prepareJobs->getNextOnDemandRows");
+		//Select id, tablename, columnname from blobstoremanager table with status as 0% and state as DOWNLOAD_ACCEPTED
+		var selectClause = [kony.sync.blobManager.id, kony.sync.blobManager.tableName, kony.sync.blobManager.columnName]
+		var wcs = [];
+		if(isDownload) {
+			kony.table.insert(wcs, {key:kony.sync.blobManager.status,value:0,optype:"EQ",comptype:"AND"});
+			kony.table.insert(wcs, {key:kony.sync.blobManager.state,value:kony.sync.blobManager.DOWNLOAD_ACCEPTED,optype:"EQ"});
+		} else {
+			kony.table.insert(wcs, {key:kony.sync.blobManager.state,value:kony.sync.blobManager.UPLOAD_ACCEPTED,optype:"EQ"});
+		}
+		var resultSet = kony.sync.queryTable(tx, kony.sync.blobStoreManagerTable,selectClause, wcs, kony.sync.blobManager.ONDEMAND_FETCH_LIMIT);
+		return resultSet;
+	}
+
 	function single_transaction_callback(tx) {
 		try {
-			//Select id, tablename, columnname from blobstoremanager table with status as 0% and state as DOWNLOAD_ACCEPTED
-			var query = null;
-			var query_compile = null;
-			var sql = null;
-			var params = null;
-			var resultSet = null;
-			query = kony.sync.qb_createQuery();
-			kony.sync.qb_select(query, [kony.sync.blobManager.id, kony.sync.blobManager.tableName, kony.sync.blobManager.columnName]);
-			kony.sync.qb_from(query, kony.sync.blobStoreManagerTable);
-			var wcs = [];
-
-			kony.table.insert(wcs, {key:kony.sync.blobManager.status,value:0,optype: "EQ", comptype:"AND"});
-			kony.table.insert(wcs, {key:kony.sync.blobManager.state,value:kony.sync.blobManager.DOWNLOAD_ACCEPTED,optype:"EQ", comptype:"OR"});
-			//TODO: pick latest rows based on timestamp
-			kony.sync.qb_where(query, wcs);
-			kony.sync.qb_limitOffset(query, kony.sync.blobManager.ONDEMAND_FETCH_LIMIT, kony.sync.blobManager.ONDEMAND_FETCH_OFFSET);
-			query_compile = kony.sync.qb_compile(query);
-			sql = query_compile[0];
-			params = query_compile[1];
-			resultSet = kony.sync.executeSql(tx, sql, params);
-			if(resultSet === false) {
-				isError = true;
-				return;
-			}
+			sync.log.trace("Entering kony.sync.blobManager.prepareJobs->single_transaction_callback");
+			//First check for ondemand rows to be downloaded
+			var download = true;
+			var resultSet = getNextOnDemandRows(tx, download);
 			var rowItemsList = [];
 			var rowItem = null;
 			var resultSetLength = null;
-			if(resultSet !== null &&  resultSet.rows.length > 0) {
+			if(resultSet === false) {
+				sync.log.error("Error executing query ");
+				isError = true;
+				return;
+			}
+
+			if( ( resultSet !== null ) && ( resultSet.rows.length === 0) ) {
+				//If there are no records to download, fetch the records to be uploaded
+				sync.log.trace(" No records to download, get next records to upload ");
+				download = false;
+				resultSet = getNextOnDemandRows(tx, download);
+				if(resultSet === false) {
+					sync.log.error("Error executing query ");
+					isError = true;
+					return;
+				}			
+			} 
+			if(resultSet !== null) {
 				resultSetLength = resultSet.rows.length;
 				for(var i=0; i < resultSetLength; i++) {
 					rowItem = kony.db.sqlResultsetRowItem(tx, resultSet, i);
@@ -1906,22 +2314,180 @@ kony.sync.blobManager.getNextOnDemandJob = function(){
 						rowItemsList.push(rowItem);
 					}
 				}
-				populateOnDemandPayload(tx, rowItemsList);
+				if(rowItemsList.length > 0) {
+					sync.log.trace("jobs retrieved from database.. "+JSON.stringify(rowItemsList));
+					populateOnDemandPayload(tx, rowItemsList, download);
+				} else {
+					return;
+				}
 			}
 		}catch(err) {
-			sync.log.error("kony.sync.blobManager.getNextOnDemandJob->exception occured "+JSON.stringify(err));
+			sync.log.error("kony.sync.blobManager.prepareJobs->exception occured "+JSON.stringify(err));
 			//errorcallback(err);
 			isError = true;
 			errorInfo = err;
 		}
 	}
-
 	var connection = kony.sync.getConnectionOnly(kony.sync.syncConfigurationDBName, kony.sync.syncConfigurationDBName, errorcallback);
-
 	if(connection !== null) {
-		kony.sync.startTransaction(connection, single_transaction_callback, single_transaction_success_callback, single_transaction_error_callback);
+		kony.sync.startTransaction(connection, single_transaction_callback,
+			single_transaction_success_callback, single_transaction_error_callback);
 	}
 };
+
+
+kony.sync.blobManager.onDemandManager = function() {
+
+};
+kony.sync.blobManager.onDemandManager.jobs = null;
+
+kony.sync.blobManager.onDemandManager.setJobs = function(jobs) {
+	kony.sync.blobManager.onDemandManager.jobs = null;
+	kony.sync.blobManager.onDemandManager.jobs = jobs;
+	sync.util.notifyToProcessJobs();
+};
+
+kony.sync.blobManager.getPreparedJobs = function() {
+	//var map = {'key':kony.sync.blobManager.onDemandManager.jobs};
+	//return map;
+	return kony.sync.blobManager.onDemandManager.jobs;
+};
+kony.sync.blobManager.onDemandManager.getJobs = function() {
+	return kony.sync.blobManager.onDemandManager.jobs;
+};
+
+kony.sync.blobManager.performCleanUp = function(cleanUpCallback) {
+	sync.log.trace("Entering kony.sync.performCleanUp");
+	var isError = false;
+	//once clean up is completed
+	function single_transaction_callback(tx) {
+		sync.log.trace("Entering kony.sync.performCleanUp - single_transaction_callback");
+
+		//parse through the konysyncBlobStoreManager and remove unwanted rows.
+
+		//Delete the rows in case of following states.
+		var deleteRecordStates = [kony.sync.blobManager.INSERT_PROCESSING,kony.sync.blobManager.INSERT_FAILED,
+			kony.sync.blobManager.DOWNLOAD_FAILED, kony.sync.blobManager.DOWNLOAD_IN_PROGRESS, kony.sync.blobManager.DOWNLOAD_ACCEPTED,
+			kony.sync.blobManager.UPDATE_FAILED, kony.sync.blobManager.UPDATE_PROCESSING,
+			kony.sync.blobManager.FILE_DOESNOT_EXIST
+		];
+
+		var whereClause = [];
+		for(var i = 0; i < deleteRecordStates.length; i++) {
+			var wc = {};
+			wc.key= kony.sync.blobManager.state;
+			wc.value = deleteRecordStates[i];
+			wc.comptype = "OR";
+			whereClause.push(wc);
+		}
+
+		var selectClause = [kony.sync.blobManager.id, kony.sync.blobManager.tableName, kony.sync.blobManager.columnName];
+
+		var result_set = kony.sync.queryTable(tx, kony.sync.blobStoreManagerTable, selectClause, whereClause);
+
+		var rowItem;
+		var valuesTable;
+		if(result_set !== null && result_set !== false) {
+			if(result_set.rows.length > 0) {
+
+				for(var k =0; k < result_set.rows.length; k++) {
+					//delete the blob entries with the given where clause.
+					rowItem = kony.db.sqlResultsetRowItem(tx, result_set, k);
+					sync.log.trace("record to be deleted in konysyncBlobStoreManager is "+JSON.stringify(rowItem));
+					var deleteResult = kony.sync.blobManager.deleteBlob(tx,  rowItem[kony.sync.blobManager.id],
+						function(err) {
+							kony.sync.errorObject = err;
+							sync.log.error("kony.sync.blobManager.performCleanUp -error in deleteBlob "+
+								JSON.stringify(err));
+							isError = true;
+						});
+					sync.log.trace("after deleting record with id "+rowItem[kony.sync.blobManager.id]+" result is "+JSON.stringify(deleteResult));
+					if(deleteResult !== null && deleteResult !== false) {
+						//tx, tableName, values, wcs, errorCallback
+						var binaryColumnName = kony.sync.binaryMetaColumnPrefix + rowItem[kony.sync.blobManager.columnName];
+						valuesTable = {};
+						var wcs = [{
+							key: binaryColumnName,
+							value: rowItem[kony.sync.blobManager.id]
+						}];
+
+						valuesTable[binaryColumnName] = kony.sync.blobRefNotDefined;
+						var updateResult = kony.sync.blobManager.updateParentWithBlobReference(tx, rowItem[kony.sync.blobManager.tableName], valuesTable,
+							wcs, function (err) {
+								kony.sync.errorObject = err;
+								sync.log.error("kony.sync.blobManager.performCleanUp -error in updateParentWithBlobReference " +
+									JSON.stringify(err));
+								isError = true;
+							});
+						sync.log.trace("after updating record's blobref result is "+JSON.stringify(updateResult));
+
+						if(updateResult === null || updateResult === false) {
+							sync.log.error("kony.sync.blobManager.performCleanUp -error in updateParentWithBlobReference ");
+							isError = true;
+						}
+					} else {
+						sync.log.error("kony.sync.blobManager.performCleanUp -error in deleteBlob");
+						isError = true;
+					}
+				}
+			}
+			if(!isError) {
+				//change the state of upload_in_progress to upload_failed.
+				whereClause = [{
+					key: kony.sync.blobManager.state,
+					value: kony.sync.blobManager.UPLOAD_IN_PROGRESS
+				}];
+
+				result_set = kony.sync.queryTable(tx, kony.sync.blobStoreManagerTable, selectClause, whereClause);
+				if (result_set !== null && result_set !== false) {
+					if (result_set.rows.length > 0) {
+						for (var k = 0; k < result_set.rows.length; k++) {
+							rowItem = kony.db.sqlResultsetRowItem(tx, result_set, k);
+							valuesTable = {};
+							valuesTable.state = kony.sync.blobManager.UPLOAD_FAILED;
+							kony.sync.blobManager.updateBlobManager(tx, rowItem[kony.sync.blobManager.id], valuesTable,
+								function (err) {
+									kony.sync.errorObject = err;
+									sync.log.error("kony.sync.blobManager.performCleanUp -error in updateBlobManager " +
+										JSON.stringify(err));
+									isError = true;
+								}
+							);
+						}
+					}
+				} else {
+					sync.log.error("kony.sync.blobManager.performCleanUp - error in fetchFromBlobStoreManager");
+					isError = true;
+				}
+			}
+		} else {
+			sync.log.error("kony.sync.blobManager.performCleanUp - error in fetchFromBlobStoreManager");
+			isError = true;
+		}
+	}
+
+	function single_transaction_success_callback() {
+		sync.log.trace("Entering kony.sync.performCleanUp - single_transaction_success_callback");
+		if(!isError) {
+			kony.sync.isCleanUpJobCompleted = true;
+		}
+		cleanUpCallback(isError);
+	}
+
+	function single_transaction_error_callback() {
+		sync.log.trace("Entering kony.sync.performCleanUp - single_transaction_error_callback");
+		cleanUpCallback(true);
+	}
+
+	var connection = kony.sync.getConnectionOnly(kony.sync.syncConfigurationDBName, kony.sync.syncConfigurationDBName, cleanUpCallback);
+	if(connection !== null) {
+		kony.sync.startTransaction(connection, single_transaction_callback,
+			single_transaction_success_callback, single_transaction_error_callback);
+	}
+};
+
+
+
 //  **************** End BlobStoreManager.js******************
 //  **************** End KonySyncBlobStoreManager.js*******************
 
@@ -1934,6 +2500,9 @@ if(typeof(sync) === "undefined") {
     sync = {};
 }
 
+if(typeof(kony.sync.blobManager) === "undefined") {
+    kony.sync.blobManager = {};
+}
 /**
  * Method returns the download policy of the given column in the table if the type of column is binary
  * else returns null
@@ -1943,7 +2512,7 @@ if(typeof(sync) === "undefined") {
  */
 kony.sync.getDownloadPolicy = function(tableName, columnName) {
 
-    var downloadPolicy = null;
+    var downloadPolicy = kony.sync.notSupported;
     if(!kony.sync.isNullOrUndefined(kony.sync.scopes) && kony.sync.scopes.syncTableScopeDic.hasOwnProperty(tableName)) {
         var scope = kony.sync.scopes[kony.sync.scopes.syncTableScopeDic[tableName]];
         var tableColumns = scope.syncTableDic[tableName].Columns;
@@ -1951,8 +2520,8 @@ kony.sync.getDownloadPolicy = function(tableName, columnName) {
         for (var i = 0; i < tableColumns.length; i++) {
             if (tableColumns[i].Name === columnName && tableColumns[i].type === "binary") {
                 isColumn = true;
-                if (tableColumns[i].hasOwnProperty("BinaryPolicy")) {
-                    downloadPolicy = tableColumns[i].BinaryPolicy;
+                if (tableColumns[i].hasOwnProperty(kony.sync.binaryPolicy)) {
+                    downloadPolicy = tableColumns[i][kony.sync.binaryPolicy];
                 } else {
                     downloadPolicy = kony.sync.inline;
                 }
@@ -1961,7 +2530,28 @@ kony.sync.getDownloadPolicy = function(tableName, columnName) {
         };
     }
     return downloadPolicy;
+};
 
+/**
+ * Method checks whether the given column in binary column or not.
+ * @param tbname - table to which column belongs to.
+ * @param columnName - name of the column
+ * @returns {number|Number} - returns -1 if the column is not binary.
+ */
+kony.sync.getBinaryColumnsByPolicy = function(tbname, policy) {
+    var columnsWithRequestedPolicy = [];
+    if(!kony.sync.isNullOrUndefined(kony.sync.scopes.syncScopeBlobInfoMap[tbname]) &&
+        !kony.sync.isNullOrUndefined(kony.sync.scopes.syncScopeBlobInfoMap[tbname][kony.sync.columns])) {
+        var binaryColumnsOfTable = kony.sync.scopes.syncScopeBlobInfoMap[tbname][kony.sync.columns];
+
+        for (var j = 0; j < binaryColumnsOfTable.length; j++) {
+            var downloadPolicy = kony.sync.getDownloadPolicy(tbname, binaryColumnsOfTable[j]);
+            if (downloadPolicy === policy) {
+                columnsWithRequestedPolicy.push(binaryColumnsOfTable[j]);
+            }
+        }
+    }
+    return columnsWithRequestedPolicy;
 };
 
 /**
@@ -1971,9 +2561,12 @@ kony.sync.getDownloadPolicy = function(tableName, columnName) {
  * @returns {number|Number} - returns -1 if the column is not binary.
  */
 kony.sync.isBinaryColumn = function(tbname, columnName) {
-    var binaryColumnsOfTable = kony.sync.scopes.syncScopeBlobInfoMap[tbname][kony.sync.columns];
-
-    return binaryColumnsOfTable.indexOf(columnName);
+    if(!kony.sync.isNullOrUndefined(kony.sync.scopes.syncScopeBlobInfoMap[tbname]) &&
+        !kony.sync.isNullOrUndefined(kony.sync.scopes.syncScopeBlobInfoMap[tbname][kony.sync.columns])) {
+        var binaryColumnsOfTable = kony.sync.scopes.syncScopeBlobInfoMap[tbname][kony.sync.columns];
+        return binaryColumnsOfTable.indexOf(columnName);
+    }
+    return -1;
 };
 
 /**
@@ -1993,9 +2586,10 @@ kony.sync.getBlobRef = function(tx, tableName, columnName, pks, errorNotifier) {
         var wc = {};
         wc.key = key;
         wc.value = pks[key];
-
+        wc.comptype = "AND";
         wcs.push(wc);
     }
+
     var query = kony.sync.qb_createQuery();
     kony.sync.qb_from(query, tableName);
     var blobRefColumn = kony.sync.binaryMetaColumnPrefix + columnName;
@@ -2006,7 +2600,8 @@ kony.sync.getBlobRef = function(tx, tableName, columnName, pks, errorNotifier) {
     var sql = query_compile[0];
     var params = query_compile[1];
 
-    var blobRef = -1;
+    var blobRef = kony.sync.blobRefNotFound;
+    //"NULL"
 
     var result = kony.db.executeSql(tx, sql, params, function (err) {
         kony.print("error in transaction call back " + JSON.stringify(err));
@@ -2021,7 +2616,6 @@ kony.sync.getBlobRef = function(tx, tableName, columnName, pks, errorNotifier) {
         }
     }
     return blobRef;
-
 }
 
 /**
@@ -2036,8 +2630,8 @@ kony.sync.validatePkTable = function(pkColumns, pkTable) {
 
     var receivedPkColumns = Object.keys(pkTable);
     //remove non pk columns..
-    for(var i = receivedPkColumns.length - 1; i > 0 ; i--) {
-        if(pkColumns.indexOf(receivedPkColumns(i)) === -1) {
+    for(var i = receivedPkColumns.length - 1; i >= 0 ; i--) {
+        if(pkColumns.indexOf(receivedPkColumns[i]) === -1) {
             delete pkTable[receivedPkColumns[i]];
             receivedPkColumns.splice(i , 1);
         }
@@ -2051,6 +2645,173 @@ kony.sync.validatePkTable = function(pkColumns, pkTable) {
         return pkTable;
     }
 };
+
+kony.sync.removeBinaryMetaColumns = function(tablename, columns) {
+	var nonMetaColumns = [];
+	
+	for(var j =0; j < columns.length; j++) {
+		if(columns[j].Name.indexOf(kony.sync.binaryMetaColumnPrefix) !== 0) {
+			nonMetaColumns.push(columns[j]);
+		}
+	}
+    return nonMetaColumns;
+}
+
+kony.sync.getBlobContext = function(tx, tableName, columnName, pks, errorNotifier) {
+    var wcs = [];
+
+    for (var key in pks) {
+        var wc = {};
+        wc.key = key;
+        wc.value = pks[key];
+        wc.comptype = "AND";
+        wcs.push(wc);
+    }
+
+
+    var query = kony.sync.qb_createQuery();
+    kony.sync.qb_from(query, tableName);
+    kony.sync.qb_select(query, [columnName]);
+    kony.sync.qb_where(query, wcs);
+
+    var query_compile = kony.sync.qb_compile(query);
+    var sql = query_compile[0];
+    var params = query_compile[1];
+
+    var blobContext = kony.sync.blobRefNotFound;
+    //"NULL"
+
+    var result = kony.db.executeSql(tx, sql, params, function (err) {
+        kony.print("error in transaction call back " + JSON.stringify(err));
+        errorNotifier(err);
+
+    });
+
+    if(result !== null && result !== false) {
+        if(result.rows.length > 0) {
+            var rowItem = kony.db.sqlResultsetRowItem(tx, result, 0);
+            blobContext= rowItem[columnName];
+        }
+    }
+    return blobContext;
+};
+
+
+kony.sync.getBinaryColumns = function(tablename) {
+    if(kony.sync.isNullOrUndefined(kony.sync.scopes.syncScopeBlobInfoMap[tablename]) ||
+        kony.sync.isNullOrUndefined(kony.sync.scopes.syncScopeBlobInfoMap[tablename][kony.sync.columns])){
+        return;
+    } else {
+        return kony.sync.scopes.syncScopeBlobInfoMap[tablename][kony.sync.columns];
+    }
+};
+
+
+kony.sync.getSyncToDeviceField = function(tableName, columnName) {
+    sync.log.trace("Entering kony.sync.getSyncToDeviceField for table "+tableName+" and column "+columnName);
+    if(kony.sync.isNullOrUndefined(kony.sync.scopes.syncToDeviceMap) &&
+        !kony.sync.scopes.syncToDeviceMap.hasOwnProperty(tableName+columnName)){
+        return;
+    }
+    return kony.sync.scopes.syncToDeviceMap[tableName+columnName];
+};
+
+
+
+
+//initialize Binary stats properties
+kony.sync.initBinaryStatProperties = function() {
+    //current sync cycle stats
+    var uploadBinaryStats = {};
+    var downloadBinaryStats = {};
+
+    //initializing upload related stats..
+
+    uploadBinaryStats.totalNumberOfUploads = 0;
+    uploadBinaryStats.uploadsCompleted = 0;
+    uploadBinaryStats.uploadsFailed = 0;
+
+    //initializing download related stats..
+    downloadBinaryStats.totalNumberOfDownloads = 0;
+    downloadBinaryStats.downloadsCompleted = 0;
+   downloadBinaryStats.downloadsFailed = 0;
+
+    kony.sync.currentSyncStats.uploadBinaryStats = uploadBinaryStats;
+    kony.sync.currentSyncStats.downloadBinaryStats = downloadBinaryStats;
+};
+
+//initialize stat params
+kony.sync.initBinaryStats = function() {
+    sync.log.trace("Entered kony.sync.initBinaryStats - initializing binary stats parameters.. ");
+
+    kony.sync.currentSyncStats = {};
+    kony.sync.initBinaryStatProperties();
+    //last sync cycle stats
+    kony.sync.lastSyncStats = {};
+};
+
+
+//assign currentSyncStats to lastSyncStats
+kony.sync.reinitializeBinaryStats = function() {
+    kony.sync.lastSyncStats = kony.sync.currentSyncStats;
+
+    //current sync cycle stats
+    kony.sync.currentSyncStats = {};
+    kony.sync.initBinaryStatProperties();
+};
+
+//increment number of uploads/ downloads..
+kony.sync.incrementTotalJobs = function(isDownload) {
+    if(isDownload) {
+        sync.log.trace("kony.sync.incrementTotalJobs downloads incremented");
+        kony.sync.currentSyncStats.downloadBinaryStats.totalNumberOfDownloads =
+            kony.sync.currentSyncStats.downloadBinaryStats.totalNumberOfDownloads + 1;
+    } else{
+        sync.log.trace("kony.sync.incrementTotalJobs uploads incremented");
+        kony.sync.currentSyncStats.uploadBinaryStats.totalNumberOfUploads =
+            kony.sync.currentSyncStats.uploadBinaryStats.totalNumberOfUploads + 1;
+    }
+};
+
+//increment number of completed uploads / downloads
+kony.sync.incrementCompletedJobs = function(isDownload) {
+    if(isDownload) {
+        sync.log.trace("kony.sync.incrementCompletedJobs downloads incremented");
+        kony.sync.currentSyncStats.downloadBinaryStats.downloadsCompleted =
+            kony.sync.currentSyncStats.downloadBinaryStats.downloadsCompleted + 1;
+    } else {
+        sync.log.trace("kony.sync.incrementCompletedJobs uploads incremented");
+        kony.sync.currentSyncStats.uploadBinaryStats.uploadsCompleted =
+            kony.sync.currentSyncStats.uploadBinaryStats.uploadsCompleted + 1;
+    }
+};
+
+//increment number of failed uploads / downloads
+kony.sync.incrementFailedJobs = function(isDownload) {
+    if(isDownload) {
+        sync.log.trace("kony.sync.incrementFailedJobs downloads incremented");
+        kony.sync.currentSyncStats.downloadBinaryStats.downloadsFailed =
+            kony.sync.currentSyncStats.downloadBinaryStats.downloadsFailed + 1;
+    } else {
+        sync.log.trace("kony.sync.incrementFailedJobs uploads incremented");
+        kony.sync.currentSyncStats.uploadBinaryStats.uploadsFailed =
+            kony.sync.currentSyncStats.uploadBinaryStats.uploadsFailed + 1;
+    }
+};
+
+kony.sync.invokeBinaryNotifiers = function(isDownload) {
+    if(isDownload) {
+        if(kony.sync.onBinaryDownload && kony.sync.isValidFunctionType(kony.sync.onBinaryDownload)) {
+            kony.sync.onBinaryDownload(kony.sync.currentSyncStats.downloadBinaryStats);
+        }
+    } else {
+        if(kony.sync.onBinaryUpload && kony.sync.isValidFunctionType(kony.sync.onBinaryUpload)) {
+            kony.sync.onBinaryUpload(kony.sync.currentSyncStats.uploadBinaryStats);
+        }
+    }
+};
+
+
 //  **************** End KonySyncBlobUtils.js*******************
 
 
@@ -2063,6 +2824,9 @@ if(typeof(sync)=== "undefined"){
 	sync = {};
 }
 
+if(typeof(kony.sync.blobManager) === "undefined") {
+	kony.sync.blobManager = {};
+}
 //Checks whether download response is eligible for chunking or not
 kony.sync.eligibleForChunking = function(result){
 	sync.log.trace("Entering kony.sync.eligibleForChunking");
@@ -2940,8 +3704,8 @@ kony.sync.insert = function (tx, tablename, values, insert_callback, markForUplo
 	if (generatedPK === false) {
 		return false;
 	}
-	//Check if it is original or save the original state.
 
+	//Check if it is original or save the original state.
 	if (markForUpload === false) {
 		if (kony.sync.addToRollBack(tx, tablename, values, kony.sync.insertColStatusDI, null, insert_callback) === false) {
 			return false;
@@ -3011,7 +3775,27 @@ kony.sync.error_callbackdb = function (error) {
 kony.sync.update = function (tx, tablename, values, wc, markForUpload) {
 	sync.log.trace("Entering kony.sync.update ");
 	//Check if it is original or save the original state.
-
+	var query = kony.sync.qb_createQuery();
+				kony.sync.qb_select(query, null);
+				kony.sync.qb_from(query, tablename + "_history");
+				kony.sync.qb_where(query, wc);
+	var query_compile = kony.sync.qb_compile(query);
+	var sql = query_compile[0];
+	var params = query_compile[1];
+	var myres = kony.sync.executeSql(tx, sql, params);
+	if (myres === false) {
+		return false;
+	}
+	for(var k=0;k< myres.rows.length; k++){
+		var recordres = kony.db.sqlResultsetRowItem(tx, myres, 0);
+		if(recordres === null){
+			return false;
+		} 
+		var prevMarkForupload = recordres.konysyncchangetype;
+		if( prevMarkForupload == 90 && markForUpload == true ){
+			return kony.sync.errorCodeInvalidMarkForUploadValue;
+		}
+	}
 	if (markForUpload === false) {
 		if(kony.sync.addToRollBack(tx, tablename, values, kony.sync.updateColStatusDU, wc)===false){
 			return false;
@@ -3050,10 +3834,19 @@ kony.sync.update = function (tx, tablename, values, wc, markForUpload) {
 	if(syncorder === false){
 		return false;
 	}
+
 	resultSet = kony.sync.executeSql(tx, sql, params);
 	if (resultSet === false) {
 		return false;
+	} else if(resultSet.rows.length === 0) {
+		sync.log.error("No record found with the given where condition "+JSON.stringify(wc));
+		kony.sync.errorObject = kony.sync.getErrorTable(
+			kony.sync.errorCodeRecordDoNotExist,
+			kony.sync.getErrorMessage(kony.sync.errorCodeRecordDoNotExist, JSON.stringify(wc))
+		);
+		return false;
 	}
+
 	var record = kony.db.sqlResultsetRowItem(tx, resultSet, 0);
 	if(record === null){
 		return false;
@@ -3303,7 +4096,6 @@ kony.sync.remove = function (tx, tablename, wc, isLocal, markForUpload, errorCal
 	if (resultSet === false) {
 		return false;
 	}
-	kony.sync.blobstore_delete(tx, tablename, wc, false);
 	var num_records = resultSet.rows.length;
 	var rowsDeleted = 0;
 	for (var i = 0; i < num_records; i++) {
@@ -3650,7 +4442,7 @@ kony.sync.syncDropDatabase = function (dbList, successcallback, errorcallback) {
 		} else {
 			sync.log.info("Deleting all binary files ");
 			if(typeof(sync.util) !== "undefined") {
-				sync.util.deleteallbinaryfiles();		
+				sync.util.deleteAllBinaryFiles();
 			}	
 			sync.log.info("Reinitializing...");
 			sync.init(successcallback, errorcallback);
@@ -3762,6 +4554,10 @@ if(typeof(kony.sync)=== "undefined"){
 }
 if(typeof(sync)=== "undefined"){
 	sync = {};
+}
+
+if(typeof(kony.sync.blobManager) === "undefined"){
+	kony.sync.blobManager = {};
 }
 
 kony.sync.syncDownloadChanges = function (sname, dbname, onCompletion){
@@ -4338,88 +5134,179 @@ kony.sync.updateSyncVerisonNumberForFailedRow = function (tx, tablename, pkKey, 
         	}	                        
 		}
 	}
-}
+};
 
-kony.sync.applyChangesToBlobStoreDB = function(tx, tablename, row, binaryColumns, changeType) {
-	var binaryColumnsLength = binaryColumns.length;
-	var binaryColumnName = null;
-	var blobIndex  = null;
-	var konysyncBinaryField = null;
-	var query = null;
-	var query_compile = null;
-	var sql = null;
-	var params = null;
-	var resultset = null;
-	for(var i=0; i<binaryColumnsLength; i++) {
-		binaryColumnName = binaryColumns[i];
-		konysyncBinaryField = kony.sync.binaryMetaColumnPrefix + binaryColumnName;
-		if(!kony.sync.isNullOrUndefined(row[binaryColumnName])) {
-			//First try to get the blobref_binaryFieldColumn Value, if it exists then it is update/delete else create
-			query = kony.sync.qb_createQuery();
-			kony.sync.qb_select(query, [konysyncBinaryField]);
-			kony.sync.qb_from(query, tablename);     
-			var pkColumns = kony.sync.currentScope.syncTableDic[tablename].Pk_Columns;
-			var pkwcs = [];
-			for (var j = 0; j < pkColumns.length; j++){
-				kony.table.insert(pkwcs,{
-					key: pkColumns[j],
-					value: row[pkColumns[j]],
-					optype: "EQ"
-				});
+kony.sync.addBinaryRecordsToDownload = function(tx, tablename, pkColumns) {
+
+	function errorCallback(err) {
+		kony.sync.errorObject = err;
+		kony.sync.downloadFailed(false);
+	}
+	//from the table fetch all the records having NULL for blobref columns with "always" policy.
+	var alwaysColumns = kony.sync.getBinaryColumnsByPolicy(tablename, kony.sync.always);
+	//var pkColumns = kony.sync.currentScope.syncTableDic[tablename].Pk_Columns;
+	var resultSet;
+	for(var k in  alwaysColumns) {
+		sync.log.trace("kony.sync.addBinaryRecordsToDownload - alwaysColumn is "+alwaysColumns[k]);
+		var konysyncBinaryMetaColumn = kony.sync.binaryMetaColumnPrefix + alwaysColumns[k];
+		var whereClause = [{
+			key : konysyncBinaryMetaColumn,
+			value : kony.sync.blobRefNotDefined
+		}, {
+			key : alwaysColumns[k],
+			value : kony.sync.blobRefNotDefined,
+			optype : "NOT_EQ"
+		}
+		];
+		resultSet = kony.sync.queryTable(tx, tablename, pkColumns, whereClause);
+
+		//parse through the result set, create blob record for each record and update its reference at parent table.
+		if(resultSet) {
+			sync.log.trace("kony.sync.addBinaryRecordsToDownload - Number of always records to be added to the download queue "+resultSet.rows.length);
+			for(var l = 0;l < resultSet.rows.length; l++) {
+				var rowItem = kony.db.sqlResultsetRowItem(tx, resultSet, l);
+				//create a record in blobStoreManager.
+				kony.sync.blobManager.triggerDownload(tx, tablename, alwaysColumns[k], rowItem ,errorCallback);
+				//increment total number of download jobs..
+				kony.sync.incrementTotalJobs(true);
 			}
-			kony.sync.qb_where(query, pkwcs);			           
-			query_compile = kony.sync.qb_compile(query);
-			sql = query_compile[0];
-			params = query_compile[1];
-			resultset = kony.sync.executeSql(tx, sql, params);
-			//update the binary value
-			//TODO - how to tackle this in case of onDemand.
-			if(resultset !== false && resultset.rows.length > 0) {
-				var rowItem = kony.db.sqlResultsetRowItem(tx, resultset, 0);
-				if (!kony.sync.isNullOrUndefined(rowItem[konysyncBinaryField])) {
-					blobIndex = rowItem[konysyncBinaryField];
-					if(changeType !== "delete") {
-						var isUpdateSuccessful = kony.sync.blobManager.updateBlob(tx, blobIndex,  row[binaryColumnName],
-							function(err){
-								kony.sync.errorObject = err;
-								kony.sync.downloadFailed(false);
-								return;
-							});
-						if(!isUpdateSuccessful) {
-							kony.sync.downloadFailed(false);
-						}
-					}else {
-						var isDeleteSuccessful = kony.sync.blobManager.deleteBlob(tx, blobIndex, function(err){
-							kony.sync.errorObject = err;
-							kony.sync.downloadFailed(false);
-							return;
-						});
-						if(!isDeleteSuccessful) {
-							kony.sync.downloadFailed(false);
-						}
-					}			
-				}
-			}
-			//insert binary value
-			else {
-				var downloadPolicy = kony.sync.getDownloadPolicy(tablename, binaryColumnName);
-				if(downloadPolicy === kony.sync.inline) {
-					blobIndex = kony.sync.blobManager.saveBlob(tx, tablename, binaryColumnName, row[binaryColumnName],
-						function (err) {
-							kony.sync.downloadFailed(false);
-						}
-					);
-				}
-			}
-			//in case of ondemand download, blobindex will not be disturbed.
-			// So insert the url payload as-is.
-			if(!kony.sync.isNullOrUndefined(blobIndex)) {
-				delete row[binaryColumnName];
-				row[konysyncBinaryField] = blobIndex;
-			}			
+		} else {
+			sync.log.error("Error in querying table "+tablename);
+			return;
 		}
 	}
+
+	//for ifRecordValue columns...
+	var ifRecordValueColumns = kony.sync.getBinaryColumnsByPolicy(tablename, kony.sync.ifRecordValue);
+	for(var k in ifRecordValueColumns) {
+		//fetch the synctodevicefield for the column.
+		var syncToDeviceColumn = kony.sync.getSyncToDeviceField(tablename, ifRecordValueColumns[k]);
+		if(syncToDeviceColumn) {
+			sync.log.trace("kony.sync.addBinaryRecordsToDownload - alwaysColumn is "+ifRecordValueColumns[k]);
+			var konysyncBinaryMetaColumn = kony.sync.binaryMetaColumnPrefix + ifRecordValueColumns[k];
+			var whereClause = [{
+				key : konysyncBinaryMetaColumn,
+				value : kony.sync.blobRefNotDefined
+			}, {
+				key : ifRecordValueColumns[k],
+				value : kony.sync.blobRefNotDefined,
+				optype : "NOT_EQ"
+			}, {
+				key : syncToDeviceColumn,
+				value : "true"
+			}
+			];
+
+			resultSet = kony.sync.queryTable(tx, tablename, pkColumns, whereClause);
+			if(resultSet) {
+				sync.log.trace("kony.sync.addBinaryRecordsToDownload - Number of ifrecordvalue records to be added to the download queue "+resultSet.rows.length);
+				for(var l = 0;l < resultSet.rows.length; l++) {
+					var rowItem = kony.db.sqlResultsetRowItem(tx, resultSet, l);
+					//create a record in blobStoreManager.
+					kony.sync.blobManager.triggerDownload(tx, tablename, ifRecordValueColumns[k], rowItem ,errorCallback);
+					//increment total number of download jobs..
+					kony.sync.incrementTotalJobs(true);
+				}
+			} else {
+				sync.log.error("Error in querying table "+tablename);
+				return;
+			}
+		}
+	}
+
+	return true;
 };
+
+kony.sync.applyChangesToBlobStoreDB = function(tx, tablename, row, blobMap, changeType, pks) {
+
+	function errorCallback(err) {
+		kony.sync.errorObject = err;
+		kony.sync.downloadFailed(false);
+	}
+
+	var blobStoreIndices = {};
+	var blobId;
+	//adding the always, ifrecordvalue policy binaries to download queue..
+	var binaryColumns = kony.sync.getBinaryColumns(tablename);
+	if(binaryColumns) {
+		for(var k in binaryColumns) {
+			switch(kony.sync.getDownloadPolicy(tablename, binaryColumns[k])) {
+				case kony.sync.always:
+					blobId = kony.sync.blobManager.createBlobRecord(tx, tablename, binaryColumns[k], errorCallback);
+					if(!blobId){
+						return;
+					}
+					blobStoreIndices[kony.sync.binaryMetaColumnPrefix + binaryColumns[k]] = blobId;
+					//increment total number of download jobs..
+					kony.sync.incrementTotalJobs(true);
+					break;
+
+				case kony.sync.ifRecordValue:
+					var syncToDeviceField = kony.sync.getSyncToDeviceField(tablename, binaryColumns[k]);
+					if(syncToDeviceField && row[syncToDeviceField] === "true") {
+						blobId = kony.sync.blobManager.createBlobRecord(tx, tablename, binaryColumns[k], errorCallback);
+						if(!blobId){
+							return;
+						}
+						blobStoreIndices[kony.sync.binaryMetaColumnPrefix + binaryColumns[k]] = blobId;
+						//increment total number of download jobs..
+						kony.sync.incrementTotalJobs(true);
+					}
+					break;
+			}
+			sync.util.notifyToPrepareJobs();
+		}
+	}
+
+	sync.log.trace("inserting inline base64 data in kony blobstoremanager..");
+	if(changeType === "insert") {
+		if (Object.keys(blobMap).length > 0) {
+			var inlineBlobStoreIndices = kony.sync.blobstore_insert(tx, tablename, blobMap, errorCallback);
+			if (inlineBlobStoreIndices) {
+				for (var blobKey in inlineBlobStoreIndices) {
+					blobStoreIndices[blobKey] = inlineBlobStoreIndices[blobKey];
+				}
+			} else {
+				sync.log.error("applyChangesToDb - error in inserting inline base64 data for table " + tablename);
+				return false;
+			}
+		}
+	} else if(changeType === "update") {
+		if(Object.keys(blobMap).length > 0) {
+			var inlineBlobStoreIndices = kony.sync.blobstore_update(tx, tablename, blobMap, pks, false, errorCallback);
+			if (inlineBlobStoreIndices) {
+				for (var blobKey in inlineBlobStoreIndices) {
+					blobStoreIndices[blobKey] = inlineBlobStoreIndices[blobKey];
+				}
+			} else {
+				sync.log.error("applyChangesToDb - error in updating inline base64 data for table " + tablename);
+				return false;
+			}
+		}
+	}
+	if(Object.keys(blobStoreIndices).length > 0) {
+		var pkColumns = kony.sync.currentScope.syncTableDic[tablename].Pk_Columns;
+
+		sync.log.trace("updating blobref values in parent table.. " + JSON.stringify(blobStoreIndices));
+		//update the parent table with blob references.
+		var wcs = [];
+		for (var key in pkColumns) {
+			var wc = {};
+			wc.key = pkColumns[key];
+			wc.value = row[pkColumns[key]];
+			wcs.push(wc);
+		}
+
+		var resultset = kony.sync.blobManager.updateParentWithBlobReference(tx, tablename, blobStoreIndices, wcs, errorCallback);
+		if (resultset === false || kony.sync.isNullOrUndefined(resultset)) {
+			return false;
+		}
+	}
+
+	//invoke the notifier..
+	kony.sync.invokeBinaryNotifiers(true);
+};
+
 
 kony.sync.applyChangesToDB = function (context) {
 	sync.log.trace("Entering kony.sync.applyChangesToDB ");
@@ -4436,12 +5323,42 @@ kony.sync.applyChangesToDB = function (context) {
 	var sql = null;
 	var params = null;
 	var resultset = null;
+
+
 	if(kony.sync.isNullOrUndefined(results)){
 		return;
-	}	
+	}
+
+	//before updating changes to db, addBinaryRecordsToDownload.
+	sync.log.trace("kony.sync.applyChangesToDb - addBinaryRecordsToDownload.");
+
+	var syncscopes = konysyncClientSyncConfig.ArrayOfSyncScope;
+	if(!kony.sync.isNullOrUndefined(syncscopes)){
+		for (var scopeCount = 0; scopeCount < syncscopes.length; scopeCount++) {
+			var scope = syncscopes[scopeCount];
+			sync.log.trace("kony.sync.applyChangesToDb - current scope "+scope.ScopeName);
+			if(!kony.sync.isNullOrUndefined(scope.ScopeTables)) {
+				for (var tableCount = 0; tableCount < scope.ScopeTables.length; tableCount++) {
+					var syncTable = scope.ScopeTables[tableCount];
+					var tablename = syncTable.Name;
+					sync.log.trace("kony.sync.applyChangesToDb - addBinaryRecordsToDownload for "+tablename);
+					if(tablename) {
+						var addingPendingBinariesForDownload = kony.sync.addBinaryRecordsToDownload(tx, tablename, syncTable.Pk_Columns);
+						if(!addingPendingBinariesForDownload) {
+							sync.log.trace("kony.sync.applyChangesToDb - addBinaryRecordsToDownload failed..");
+							return false;
+						}
+					}
+				}
+			}
+		}
+	}
+
 	for (var i = startposition; i < endposition; i++) {
 		var row = results[i];
 		var tablename = row.__metadata.type;
+
+
 
 		if (kony.sync.isNullOrUndefined(kony.sync.objectLevelInfoMap[tablename])) {
 			kony.sync.objectLevelInfoMap[tablename] = {};
@@ -4454,10 +5371,10 @@ kony.sync.applyChangesToDB = function (context) {
 			kony.sync.objectLevelInfoMap[tablename][kony.sync.numberOfRowsDeletedAck] = 0;
 			kony.sync.objectLevelInfoMap[tablename][kony.sync.numberOfRowsAcknowledged] = 0;
 			kony.sync.objectLevelInfoMap[tablename][kony.sync.numberOfRowsFailedtoUpload] = 0;
-		} 
-		
+		}
+
 		if (kony.sync.objectLevelInfoMap[tablename][kony.sync.reconciledKeysKey] == null){
-				kony.sync.objectLevelInfoMap[tablename][kony.sync.reconciledKeysKey] = [];
+			kony.sync.objectLevelInfoMap[tablename][kony.sync.reconciledKeysKey] = [];
 		}
 		var changeType = row.__metadata.changeType;
 		var values = [];
@@ -4465,47 +5382,71 @@ kony.sync.applyChangesToDB = function (context) {
 		var pkwcs = [];
 		var pkset = null;
 		var pksetwcs = [];
+		var blobMap = {};
 		//var currentversion = kony.sync.getCurrentVersionNumber(tablename);
 		var MergedWithEIS = row[kony.sync.mergedWithEIS];
 		var versionNumber = row[kony.sync.mainTableSyncVersionColumn];
 		versionNumber = kony.sync.tonumber(versionNumber);
+		sync.log.trace("row is are "+JSON.stringify(row));
+
 		if(MergedWithEIS !== "1" && MergedWithEIS !== "0") {
 			if(!kony.sync.isNullOrUndefined(kony.sync.scopes.syncScopeBlobInfoMap[tablename])){
 				var binaryDataColumns = kony.sync.scopes.syncScopeBlobInfoMap[tablename][kony.sync.columns];
-				kony.sync.applyChangesToBlobStoreDB(tx, tablename, row, binaryDataColumns, changeType);
-			}							
+
+				sync.log.trace("values are "+JSON.stringify(values));
+
+				var binaryColumns = kony.sync.scopes.syncScopeBlobInfoMap[tablename][kony.sync.columns];
+				for(var j=0; j<binaryColumns.length; j++){
+					//getDownloadPolicy of the column
+					var downloadPolicy = kony.sync.getDownloadPolicy(tablename, binaryColumns[j]);
+					if(downloadPolicy == kony.sync.inline) {
+						if(!kony.sync.isNullOrUndefined(row[binaryColumns[j]]) && row[binaryColumns[j]].trim().length > 0)
+							blobMap[binaryColumns[j]] = row[binaryColumns[j]];
+						delete row[binaryColumns[j]];
+					}
+				}
+			}
 		}
+		sync.log.trace("after applyDB blobstore "+JSON.stringify(row));
+
 		if (kony.sync.isNullOrUndefined(kony.sync.queryStore[tablename + "purgeInsert"])) {
 			values = kony.sync.removeprovisioncolumns(row, kony.sync.currentScope.syncTableDic[tablename].Columns, true);
 		} else {
 			values = kony.sync.removeprovisioncolumns(row, kony.sync.currentScope.syncTableDic[tablename].Columns, false);
 		}
 		if (MergedWithEIS !== "1" && MergedWithEIS !== "0") {
+
 			if ((changeType === "update")) {
 				//do purge logic here.
 				var result = null;
-			//#ifdef KONYSYNC_ANDROID
+				//#ifdef KONYSYNC_ANDROID
 				result = kony.sync.purgeInsertEx(tx, tablename, values, false);
+				sync.log.trace("result is "+JSON.stringify(result));
 				if (result === false)
-			//#else
-				result = kony.sync.purgeInsertEx(tx, tablename, values, true);
+				//#else
+					result = kony.sync.purgeInsertEx(tx, tablename, values, true);
 				if (result === false){
 					return false;
 				}
 				if (result !== false && result.rowsAffected === 0)
-			//#endif
+				//#endif
 				{
+					sync.log.trace("Change type is update in sync session- insert failed.. ");
 					var _upgradeContext = kony.sync.schemaUpgradeContext;
 					var _upgradeContextJSON = null;
 					if(!kony.sync.isNullOrUndefined(_upgradeContext)){
 						_upgradeContextJSON = JSON.parse(_upgradeContext);
 					}
 					//add the null columns update scenario
-					if(kony.sync.isNullOrUndefined(_upgradeContextJSON) || kony.sync.isNullOrUndefined(_upgradeContextJSON[tablename]))
-						values = kony.sync.removeprovisioncolumns(row, kony.sync.currentScope.syncTableDic[tablename].Columns, true, false);
-					else//DSC scenario
-						values = kony.sync.removeprovisioncolumns(row, kony.sync.currentScope.syncTableDic[tablename].Columns, true, true);
-
+					if(kony.sync.isNullOrUndefined(_upgradeContextJSON) || kony.sync.isNullOrUndefined(_upgradeContextJSON[tablename])) {
+						var columnsDefinedForTable = kony.sync.removeBinaryMetaColumns(tablename, kony.sync.currentScope.syncTableDic[tablename].Columns);
+						values = kony.sync.removeprovisioncolumns(row, columnsDefinedForTable, true, false);
+					}
+					else{
+						//DSC scenario
+						var columnsDefinedForTable = kony.sync.removeBinaryMetaColumns(tablename, kony.sync.currentScope.syncTableDic[tablename].Columns);
+						values = kony.sync.removeprovisioncolumns(row, columnsDefinedForTable, true, true);
+					}
 					if(!kony.sync.isNullOrUndefined(pkColumns)){
 						for (j = 0; j < pkColumns.length; j++) {
 							pk = pkColumns[j];
@@ -4550,39 +5491,100 @@ kony.sync.applyChangesToDB = function (context) {
 						closebrace : true
 					});
 					/* kony.table.insert(pkwcs, {
-					key: kony.sync.mainTableSyncVersionColumn,
-					value: currentversion,
-					optype : "EQ"
-					});*/
+					 key: kony.sync.mainTableSyncVersionColumn,
+					 value: currentversion,
+					 optype : "EQ"
+					 });*/
+
 					var originalwcs = kony.sync.CreateCopy(pksetwcs);
-				    var hasInstanceInHistoryTable = kony.sync.checkForHistoryInstance(tx, tablename, values, originalwcs);
-				    if( hasInstanceInHistoryTable === 0 ) {
-				    	return false;
-				    }
-				    
+					var hasInstanceInHistoryTable = kony.sync.checkForHistoryInstance(tx, tablename, values, originalwcs);
+
+					//update the blob store manager..
+					function updateBlobStoreManager(pks){
+						kony.sync.applyChangesToBlobStoreDB(tx, tablename, row, blobMap, "update", pks);
+					}
+
+					//for binary columns, delete the existing entries.
+					function deleteOnDemandBinaryEntries() {
+						sync.log.trace("entering deleteOnDemandBinaryEntries..");
+
+
+						var binaryColumns = kony.sync.getBinaryColumns(tablename);
+
+						if(binaryColumns) {
+							sync.log.trace("onDemandColumns for " + tablename + " are " + JSON.stringify(binaryColumns));
+							for (var j = 0; j < binaryColumns.length; j++) {
+								if (kony.sync.getDownloadPolicy(tablename, binaryColumns[j] !== kony.sync.inline)) {
+									var pkColumns = kony.sync.currentScope.syncTableDic[tablename].Pk_Columns;
+
+									var pkTable = {};
+									for (var pk in pkColumns) {
+										pkTable[pkColumns[pk]] = row[pkColumns[pk]];
+									}
+									//get the blobrefs of ondemand columns and delete that entries in blob store manager.
+									var blobRef = kony.sync.getBlobRef(tx, tablename, binaryColumns[j], pkTable, updateBlobErrorCallback);
+									sync.log.trace("blobRef for the data is " + blobRef + "for pkTable " + JSON.stringify(pkTable) + "in tablename " + tablename);
+									if (blobRef !== kony.sync.blobRefNotFound && blobRef !== kony.sync.blobRefNotDefined) {
+										var blobMeta = kony.sync.blobManager.getBlobMetaDetails(tx, blobRef, updateBlobErrorCallback);
+										//delete the record only if it is not in queue for upload.
+										if (blobMeta[kony.sync.blobManager.state] !== kony.sync.blobManager.UPLOAD_ACCEPTED
+											&& blobMeta[kony.sync.blobManager.state] !== kony.sync.blobManager.UPLOAD_IN_PROGRESS
+											&& blobMeta[kony.sync.blobManager.state] !== kony.sync.blobManager.UPLOAD_FAILED) {
+
+											//TODO - open item. delete the image after upload.
+											var isDeleteSuccessful = kony.sync.blobManager.deleteBlob(tx, blobRef, updateBlobErrorCallback);
+											sync.log.trace("isDeleteSuccessful uploadBlobStoreManager " + isDeleteSuccessful);
+											if (!isDeleteSuccessful) return false;
+
+											//update NULL in the parent table.
+											sync.log.trace("deleteOnDemandEntries - updating blobref column for " + binaryColumns[j] + " with NULL");
+											values[kony.sync.binaryMetaColumnPrefix + binaryColumns[j]] = kony.sync.blobRefNotDefined;
+										}
+									}
+								}
+							}
+						}
+					}
+
+					if( hasInstanceInHistoryTable === 0 ) {
+						return false;
+					}
+
 					if(hasInstanceInHistoryTable === false) {
+						//first delete the blob entries for the respective column.
+						deleteOnDemandBinaryEntries();
 						if (!kony.sync.isNullOrUndefined(pkset)) {
 							if(kony.sync.updateEx(tx, tablename, values, pksetwcs)===false){
 								return false;
+							} else {
+								//update blobstore manager ?
+								var blobManagerUpdate = updateBlobStoreManager(pksetwcs);
+								if(!blobManagerUpdate) return false;
 							}
-	                	} else {
+						} else {
 							if(kony.sync.updateEx(tx, tablename, values, pkwcs)===false){
 								return false;
+							} else {
+								//update blobstore manager ?
+								var blobManagerUpdate = updateBlobStoreManager(pkwcs);
+								if(!blobManagerUpdate) return false;
 							}
-	                	}
-                	}
+						}
+					}
 
-				    kony.sync.serverUpdateCount = kony.sync.serverUpdateCount + 1;
+					kony.sync.serverUpdateCount = kony.sync.serverUpdateCount + 1;
 					// update if the user hasn't changed the record
 					kony.sync.objectLevelInfoMap[tablename][kony.sync.numberOfRowsUpdated] = kony.sync.objectLevelInfoMap[tablename][kony.sync.numberOfRowsUpdated] + 1;
 //					if(kony.sync.updateEx(tx, tablename, values, pkwcs)===false){
 //						return false;
 //					}
 				} else {
+					kony.sync.applyChangesToBlobStoreDB(tx, tablename, row, blobMap, "insert");
+
 					kony.sync.objectLevelInfoMap[tablename][kony.sync.numberOfRowsInserted] = kony.sync.objectLevelInfoMap[tablename][kony.sync.numberOfRowsInserted] + 1;
 					kony.sync.serverInsertCount = kony.sync.serverInsertCount + 1;
 				}
-			} 
+			}
 			else if ((changeType === "delete")) {
 				values = kony.sync.removeprovisioncolumns(row, kony.sync.currentScope.syncTableDic[tablename].Columns, true, true);
 				// delete the record if it hasn't been changed by the user
@@ -4628,29 +5630,64 @@ kony.sync.applyChangesToDB = function (context) {
 				kony.sync.objectLevelInfoMap[tablename][kony.sync.numberOfRowsDeleted] = kony.sync.objectLevelInfoMap[tablename][kony.sync.numberOfRowsDeleted] + 1;
 				kony.sync.serverDeleteCount = kony.sync.serverDeleteCount + 1;
 				/*WARNING: Undefined method call for kony.sync.deleteEx*/
+				function blobDeleteErrorCallback(err) {
+					kony.sync.errorObject = err;
+					kony.sync.downloadFailed(false);
+				}
+
+				//delete the blob record first.
+				if(!kony.sync.isNullOrUndefined(kony.sync.scopes.syncScopeBlobInfoMap[tablename]) &&
+					!kony.sync.isNullOrUndefined(kony.sync.scopes.syncScopeBlobInfoMap[tablename][kony.sync.columns])) {
+					var binaryDataColumns = kony.sync.scopes.syncScopeBlobInfoMap[tablename][kony.sync.columns];
+					//get the blobRef for the column and delete the blobrecord.
+					for (var blobColumn in binaryDataColumns) {
+						var pkColumns = kony.sync.currentScope.syncTableDic[tablename].Pk_Columns;
+
+						var pks = {};
+						for (var pk in pkColumns) {
+							pks[pkColumns[pk]] = row[pkColumns[pk]];
+						}
+						var blobRef = kony.sync.getBlobRef(tx, tablename, binaryDataColumns[blobColumn], pks, blobDeleteErrorCallback);
+						if (blobRef !== kony.sync.blobRefNotFound && blobRef !== kony.sync.blobRefNotDefined) {
+							var isDeleteSuccessful = kony.sync.blobManager.deleteBlob(tx, blobRef, blobDeleteErrorCallback);
+							if (!isDeleteSuccessful) return false;
+						}
+					}
+				}
+
 				if(kony.sync.removeEx(tx, tablename, pkwcs)===false){
 					return false;
 				}
 			}
-			kony.sync.objectLevelInfoMap[tablename][kony.sync.numberOfRowsDownloaded] = 
-					kony.sync.objectLevelInfoMap[tablename][kony.sync.numberOfRowsInserted] + 
-					kony.sync.objectLevelInfoMap[tablename][kony.sync.numberOfRowsUpdated] + 
-					kony.sync.objectLevelInfoMap[tablename][kony.sync.numberOfRowsDeleted];
+			kony.sync.objectLevelInfoMap[tablename][kony.sync.numberOfRowsDownloaded] =
+				kony.sync.objectLevelInfoMap[tablename][kony.sync.numberOfRowsInserted] +
+				kony.sync.objectLevelInfoMap[tablename][kony.sync.numberOfRowsUpdated] +
+				kony.sync.objectLevelInfoMap[tablename][kony.sync.numberOfRowsDeleted];
 		} else {
-			if(!kony.sync.isNullOrUndefined(kony.sync.scopes.syncScopeBlobInfoMap[tablename])){
+
+			//deleting data of binary columns. but only in case of inline.
+			if(!kony.sync.isNullOrUndefined(kony.sync.scopes.syncScopeBlobInfoMap[tablename]) &&
+				!kony.sync.isNullOrUndefined(kony.sync.scopes.syncScopeBlobInfoMap[tablename][kony.sync.columns])){
 				var binaryDataColumns = kony.sync.scopes.syncScopeBlobInfoMap[tablename][kony.sync.columns];
 				var binaryColumn = null;
 				for(var k=0; k<binaryDataColumns.length; k++) {
-					binaryColumn = binaryDataColumns[k]; 
-					delete row[binaryColumn]; 
+					binaryColumn = binaryDataColumns[k];
+					var downloadPolicy = kony.sync.getDownloadPolicy(tablename, binaryColumn);
+					if(downloadPolicy === kony.sync.inline) {
+						delete row[binaryColumn];
+					}
 				}
-			}			
+			}
 			var pkTable = {};
 			var originalChangeType = row[kony.sync.mainTableChangeTypeColumn];
 			if (kony.sync.isNullOrUndefined(originalChangeType)){
 				originalChangeType = 1;
 			}
-			values = kony.sync.removeprovisioncolumns(row, kony.sync.currentScope.syncTableDic[tablename].Columns, true, true);
+
+			//ignore the blobref columns in removeprovisioncolumns method.
+			var columnsDefinedForTable = kony.sync.removeBinaryMetaColumns(tablename, kony.sync.currentScope.syncTableDic[tablename].Columns);
+
+			values = kony.sync.removeprovisioncolumns(row,columnsDefinedForTable , true, true);
 			//creating a map of reconciled primary keys
 			var keyMap = {};
 			var isAutoGenPkPresent = false;
@@ -4691,7 +5728,7 @@ kony.sync.applyChangesToDB = function (context) {
 				kony.sync.objectLevelInfoMap[tablename][kony.sync.reconciledKeysKey].push(keyMap);
 			}
 
-			
+
 			sync.log.debug("Inside MergedWithEis");
 
 			var isError = false;
@@ -4714,7 +5751,7 @@ kony.sync.applyChangesToDB = function (context) {
 				if( ( kony.sync.currentScope[kony.sync.syncStrategy] !== kony.sync.syncStrategy_OTA ) && kony.sync.isUploadErrorPolicyCOE(kony.sync.currentScope)) {
 					//Increase the version number of the failed row
 					kony.sync.updateSyncVerisonNumberForFailedRow(tx, tablename, pk, row[pk]);
-				}				
+				}
 			}
 			//checking for previous errors
 			else if (prevErrors !== 0) {
@@ -4730,6 +5767,7 @@ kony.sync.applyChangesToDB = function (context) {
 			}
 
 			var settable = [];
+			//before updating the pk
 
 			//remove row from history, original and main(in case of removeafterupload) tables for COE error upload policy if success
 			var isRemoved = false;
@@ -4739,14 +5777,14 @@ kony.sync.applyChangesToDB = function (context) {
 			}
 			if (!kony.sync.isNullOrUndefined(pkset)) {
 				/*update related tables foreign keys*/
-				
+
 				//reconciliation starts here .....
 				//row implies record here,i inplies index of the record
 				var _isError = kony.sync.reconcileForeignKeyForChildren(tx,pkset,pkwcs,tablename,row,i,endposition,results);
 				if(_isError === 0)
 					return false;
 			}
-			if (isError === false) {				
+			if (isError === false) {
 				kony.sync.objectLevelInfoMap[tablename][kony.sync.numberOfRowsAcknowledged] = kony.sync.objectLevelInfoMap[tablename][kony.sync.numberOfRowsInsertedAck] + kony.sync.objectLevelInfoMap[tablename][kony.sync.numberOfRowsUpdatedAck] + kony.sync.objectLevelInfoMap[tablename][kony.sync.numberOfRowsDeletedAck];
 
 				//continue if removed to skip updates for same record
@@ -4759,8 +5797,8 @@ kony.sync.applyChangesToDB = function (context) {
 
 				//checking for error on continueonerror upload policy and making the reconciled values consistent in child tables
 				if (!kony.sync.isNullOrUndefined(row.__metadata.errorMessage)){
-					
-					//querying the foreignkey values from from child table and replacing in setclause to maintain reconciled values properly in child table 
+
+					//querying the foreignkey values from from child table and replacing in setclause to maintain reconciled values properly in child table
 					selectClause = [];
 					parentRelationshipMap = kony.sync.currentScope.syncTableDic[tablename+kony.sync.parentRelationshipMap];
 
@@ -4773,9 +5811,8 @@ kony.sync.applyChangesToDB = function (context) {
 							var columnName = relationshipAttribute["ChildObject_Attribute"];
 							selectClause.push(columnName);
 						}
-							
-					}
 
+					}
 					synctable = kony.sync.currentScope.syncTableDic[tablename];
 					ManyToOne = synctable.Relationships.ManyToOne;//manytone relationships
 					//manytoone relationships in childtable
@@ -4788,7 +5825,7 @@ kony.sync.applyChangesToDB = function (context) {
 									var columnName = relationshipAttributes[j].SourceObject_Attribute;
 									selectClause.push(columnName);
 								};
-							}  
+							}
 						}
 					}
 
@@ -4802,7 +5839,7 @@ kony.sync.applyChangesToDB = function (context) {
 						}
 					}
 
-					
+
 					if(selectClause.length != 0){
 						query = kony.sync.qb_createQuery();
 						kony.sync.qb_select(query,selectClause);
@@ -4810,7 +5847,7 @@ kony.sync.applyChangesToDB = function (context) {
 						kony.sync.qb_where(query,pkwcs);//using the whereClause already generated
 						query_compile =kony.sync.qb_compile(query);
 						sql = query_compile[0];
-						params = query_compile[1];				
+						params = query_compile[1];
 						resultset = kony.sync.executeSql(tx, sql,params);//need to handle error callback if required
 
 						//logic to process the resultset
@@ -4818,7 +5855,7 @@ kony.sync.applyChangesToDB = function (context) {
 							var rowItem =kony.db.sqlResultsetRowItem(tx,resultset,0);
 							for(var j=0;j<selectClause.length;j++){
 								var columnName = selectClause[j];
-								values[columnName] =rowItem[columnName]; 
+								values[columnName] =rowItem[columnName];
 							}
 						}
 
@@ -4829,9 +5866,9 @@ kony.sync.applyChangesToDB = function (context) {
 				var whereClause = kony.sync.CreateCopy(pkwcs);
 				//versionMap[kony.sync.historyTableSyncVersionColumn] = versionNo[ "versionnumber"];
 				kony.table.insert(whereClause, {
-                    key: kony.sync.historyTableReplaySequenceColumn,
-                    value: row[kony.sync.historyTableReplaySequenceColumn]
-                });
+					key: kony.sync.historyTableReplaySequenceColumn,
+					value: row[kony.sync.historyTableReplaySequenceColumn]
+				});
 				if(kony.sync.updateEx(tx, tablename + kony.sync.historyTableName, values, whereClause)===false){
 					return false;
 				}
@@ -4880,57 +5917,57 @@ kony.sync.applyChangesToDB = function (context) {
 				continue;
 			}
 
-            if (!kony.sync.isNullOrUndefined(pkset)) {
+			if (!kony.sync.isNullOrUndefined(pkset)) {
 				/* clear dirty flag if not updated again*/
-                kony.table.insert(pksetwcs, {
-                    key: kony.sync.mainTableSyncVersionColumn,
-                    value: versionNumber,
+				kony.table.insert(pksetwcs, {
+					key: kony.sync.mainTableSyncVersionColumn,
+					value: versionNumber,
 					optype : "LT_EQ",
 					openbrace : true,
 					comptype:"OR"
-                });
-				kony.table.insert(pksetwcs, { 
-                    key: kony.sync.mainTableSyncVersionColumn,
-                    value: "nil",
+				});
+				kony.table.insert(pksetwcs, {
+					key: kony.sync.mainTableSyncVersionColumn,
+					value: "nil",
 					closebrace : true
-                });
-                
-                query = kony.sync.qb_createQuery();
-                kony.sync.qb_update(query, tablename);
-                kony.sync.qb_set(query, settable);
-                kony.sync.qb_where(query, pksetwcs);
-                query_compile = kony.sync.qb_compile(query);
-                sql = query_compile[0];
-                params = query_compile[1];
-                if(kony.sync.executeSql(tx, sql, params)===false){
+				});
+
+				query = kony.sync.qb_createQuery();
+				kony.sync.qb_update(query, tablename);
+				kony.sync.qb_set(query, settable);
+				kony.sync.qb_where(query, pksetwcs);
+				query_compile = kony.sync.qb_compile(query);
+				sql = query_compile[0];
+				params = query_compile[1];
+				if(kony.sync.executeSql(tx, sql, params)===false){
 					return false;
 				}
-            } else {
-                kony.table.insert(pkwcs, { 
-                    key: kony.sync.mainTableSyncVersionColumn,
-                    value: versionNumber,
+			} else {
+				kony.table.insert(pkwcs, {
+					key: kony.sync.mainTableSyncVersionColumn,
+					value: versionNumber,
 					optype : "LT_EQ",
 					openbrace : true,
 					comptype :"OR"
-                });
-				kony.table.insert(pkwcs, { 
-                    key: kony.sync.mainTableSyncVersionColumn,
-                    value: "nil",
+				});
+				kony.table.insert(pkwcs, {
+					key: kony.sync.mainTableSyncVersionColumn,
+					value: "nil",
 					closebrace : true
-                });
-                query = kony.sync.qb_createQuery();
-                kony.sync.qb_update(query, tablename);
-                kony.sync.qb_set(query, settable);
-                kony.sync.qb_where(query, pkwcs);
-                query_compile = kony.sync.qb_compile(query);
-                sql = query_compile[0];
-                params = query_compile[1];
-                if(kony.sync.executeSql(tx, sql, params)===false){
+				});
+				query = kony.sync.qb_createQuery();
+				kony.sync.qb_update(query, tablename);
+				kony.sync.qb_set(query, settable);
+				kony.sync.qb_where(query, pkwcs);
+				query_compile = kony.sync.qb_compile(query);
+				sql = query_compile[0];
+				params = query_compile[1];
+				if(kony.sync.executeSql(tx, sql, params)===false){
 					return false;
 				}
-            }
-            if (changeType === "update") {
-                // clear the dirty flag
+			}
+			if (changeType === "update") {
+				// clear the dirty flag
 				values[kony.sync.mainTableChangeTypeColumn] = "nil";
 				values[kony.sync.mainTableSyncVersionColumn] = "nil";
 				var hasInstanceInHistoryTable = kony.sync.checkForHistoryInstance(tx, tablename, values, originalwcs);
@@ -4942,34 +5979,36 @@ kony.sync.applyChangesToDB = function (context) {
 						if(kony.sync.updateEx(tx, tablename, values, pksetwcs)===false){
 							return false;
 						}
-	                } else {
+					} else {
 						if(kony.sync.updateEx(tx, tablename, values, pkwcs)===false){
 							return false;
 						}
-	                }
-                }
+					}
+				}
 			} else  if(changeType === "delete"){
 				if(!kony.sync.isNullOrUndefined(pkset)) {
-                    kony.table.insert(pksetwcs, {
-                        key: kony.sync.mainTableSyncVersionColumn,
-                        value: versionNumber
-                    });
-                    if(kony.sync.removeEx(tx, tablename, pksetwcs)===false){
+					kony.table.insert(pksetwcs, {
+						key: kony.sync.mainTableSyncVersionColumn,
+						value: versionNumber
+					});
+					if(kony.sync.removeEx(tx, tablename, pksetwcs)===false){
 						return false;
 					}
-                } else {
-                    kony.table.insert(pkwcs, {
-                        key: kony.sync.mainTableSyncVersionColumn,
-                        value: versionNumber
-                    });
-                    if(kony.sync.removeEx(tx, tablename, pkwcs)===false){
+				} else {
+					kony.table.insert(pkwcs, {
+						key: kony.sync.mainTableSyncVersionColumn,
+						value: versionNumber
+					});
+					if(kony.sync.removeEx(tx, tablename, pkwcs)===false){
 						return false;
 					}
-                }
+				}
 			}
 		}
 	}
 };
+
+
 
 kony.sync.reconcileForeignKeyForChildren = function(tx,pksetwcs,pkwcs,tablename,parentRow,currentIndex,endposition,results){
 	//populate setClause and whereClause for the child tables
@@ -5429,6 +6468,7 @@ kony.sync.errorCodeChunking = 7024;
 kony.sync.errorCodeNetworkCallCancelled = 7025;
 kony.sync.errorCodeMetatableError = 7026;
 kony.sync.errorCodeNullValue = 7027;
+kony.sync.errorCodeInvalidMarkForUploadValue = 7028;
 kony.sync.errorUnknown = 7777;
 kony.sync.errorCodeUnknownServerError = 8888;
 kony.sync.errorCodeBlobFileNotCreated = 9000;
@@ -5440,6 +6480,18 @@ kony.sync.errorCodeDownloadAlreadyInQueue = 9005;
 kony.sync.errorCodeBlobInvalidStateForDelete = 9006;
 kony.sync.errorCodeBlobInvalidStateForUpdate = 9007;
 kony.sync.errorCodeInvalidPksGiven = 9008;
+kony.sync.errorCodeInvalidColumnParams = 9009;
+kony.sync.errorCodeDownloadPolicyNotSupported = 9010;
+kony.sync.errorCodeInvalidStateForDownload = 9011;
+kony.sync.errorCodeBinaryDownloadFailed = 9012;
+kony.sync.errorCodeBlobFileDoesnotExistOnDemand = 9013;
+kony.sync.errorCodeParentMappingAttributeNotFound = 9014;
+kony.sync.errorCodeChildObjectShouldBeArray = 9015;
+kony.sync.errorCodeNullPrimaryKeyValue = 9016;
+kony.sync.errorCodeInvalidTableName = 9017;
+kony.sync.errorCodeRecordDoNotExist = 9018;
+
+kony.sync.retryErrors = {};
 
 
 //Server ErrorCodes
@@ -5518,8 +6570,10 @@ kony.sync.getErrorTable = function(errorCode, errorMessage, errorInfo, serverDet
 	errorTable.errorMessage = errorMessage;
 	errorTable.errorInfo = errorInfo;
 	errorTable[kony.sync.serverDetails] = serverDetails;
-	for(var i in otherParams){
-		errorTable[i] = otherParams[i];
+	if(!kony.sync.isNullOrUndefined(otherParams)) {
+		for (var i in otherParams) {
+			errorTable[i] = otherParams[i];
+		}
 	}
 	if(!kony.sync.isNullOrUndefined(errorInfo)){
 		if(!kony.sync.isNullOrUndefined(errorInfo[kony.sync.errorInfoDatabaseError])){
@@ -5560,13 +6614,23 @@ kony.sync.getErrorMessage = function(errorCode,objectName, attributeName) {
 	errorMap[kony.sync.errorCodeBlobFileNotCreated] = "Error occurred when creating a file";
 	errorMap[kony.sync.errorCodeInvalidColumnType] = "Expecting an array and got type "+objectName+ "instead for columns";
 	errorMap[kony.sync.errorCodeEmptyOrNullBase64] = "Empty or Null value should not be passed for Base64";
-	errorMap[kony.sync.errorCodeBlobFileDoesnotExist] = "Request file doesn't exist";
+	errorMap[kony.sync.errorCodeBlobFileDoesnotExistOnDemand] = "Request file doesn't exist. Please retrigger the download of the binary";
+	errorMap[kony.sync.errorCodeBlobFileDoesnotExist] = "Request file doesn't exist.";
 	errorMap[kony.sync.errorCodeBlobInvalidState] = "BlobFile in invalid state. Could not upload.";
 	errorMap[kony.sync.errorCodeDownloadAlreadyInQueue] = "Binary download already requested";
 	errorMap[kony.sync.errorCodeBlobInvalidStateForDelete] = "Blob cannot be deleted in "+objectName+" state";
 	errorMap[kony.sync.errorCodeBlobInvalidStateForUpdate] = "Blob cannot be updated in "+objectName+" state";
-	errorMap[kony.sync.errorCodeInvalidPksGiven] = "Received invalid pks for fetch binary";
-
+	errorMap[kony.sync.errorCodeInvalidPksGiven] = "Invalid primary keys given for table "+objectName;
+	errorMap[kony.sync.errorCodeInvalidColumnParams] = "Invalid column params ";
+	errorMap[kony.sync.errorCodeDownloadPolicyNotSupported] = "Download policy not supported for "+objectName;
+	errorMap[kony.sync.errorCodeInvalidStateForDownload] = "Blob cannot be downloaded in "+objectName+" state";
+	errorMap[kony.sync.errorCodeBinaryDownloadFailed] = "Download operation failed";
+	errorMap[kony.sync.errorCodeParentMappingAttributeNotFound] = "Parent Mapping Attribute not found for given child "+objectName;
+	errorMap[kony.sync.errorCodeChildObjectShouldBeArray] = "Child objects should be of Array type for complex object CUD";
+	errorMap[kony.sync.errorCodeNullPrimaryKeyValue] = "Null value passed for primary key "+objectName;
+	errorMap[kony.sync.errorCodeInvalidTableName] = "Invalid table name sent for DB Operation "+objectName;
+	errorMap[kony.sync.errorCodeRecordDoNotExist] = "Record doesn't exists with given conditions "+objectName;
+	errorMap[kony.sync.errorCodeInvalidMarkForUploadValue] = "MarkforUpload value can not be made true if the object is created with mark for upload as false";
 
 	if(errorMap[errorCode]===null){
 		return "Some unknown client error";
@@ -5973,9 +7037,59 @@ kony.sync.lastBatch = "lastBatch";
 kony.sync.columns = "binarycolumns";
 kony.sync.binaryMetaColumnPrefix = "blobref_";
 kony.sync.blob = "binary";
-
-kony.sync.onDemand = "Attachment";
+kony.sync.onDemand = "ondemand";
+kony.sync.always = "always";
+kony.sync.ifRecordValue = "ifrecordvalue";
+kony.sync.syncToDeviceField = "downloadToDeviceField";
 kony.sync.inline = "Inline";
+kony.sync.notSupported = "NotSupported";
+
+kony.sync.blobRefNotFound = -1;
+kony.sync.blobRefNotDefined = "NULL";
+kony.sync.binaryPolicy = "downloadToDevice";
+kony.sync.blobTypeBase64 = "base64";
+kony.sync.blobTypeStream = "stream";
+kony.sync.forceDownload = "forceDownload";
+kony.sync.maxFilePercent = 100;
+kony.sync.minFilePercent = 0;
+kony.sync.maxRetries = 3;
+kony.sync.optype = "optype";
+kony.sync.comptype = "comptype";
+kony.sync.openbrace = "openbrace";
+kony.sync.closebrace = "closebrace";
+kony.sync.queryKey = "key";
+kony.sync.queryValue = "value";
+kony.sync.params = "params";
+kony.sync.httpHeaders = "httpheaders";
+kony.sync.url = "url";
+kony.sync.blobId = "blobid";
+kony.sync.blobName = "blobname";
+kony.sync.type = "type";
+kony.sync.metadata = "metadata";
+kony.sync.changetype = "changetype";
+kony.sync.syncobjects = "syncobjects";
+kony.sync.serverBlob = "serverBlob";
+kony.sync.blobSyncScope = "scopeName";
+kony.sync.clientId = "clientid";
+kony.sync.moreChangesAvailable = "moreChangesAvailable";
+kony.sync.requestState = "requestState";
+kony.sync.currentSyncConfigKey = "currentSyncConfigParams";
+
+kony.sync.requestType = "requestType";
+kony.sync.isUpload = false;
+kony.sync.isDownload = true;
+kony.sync.konySyncReplaySequence = "konysyncreplaysequence";
+kony.sync.SequenceNumber = "SequenceNumber";
+kony.sync.sync = "sync";
+kony.sync.oneToMany = "OneToMany";
+kony.sync.targetObject = "TargetObject";
+kony.sync.sourceAttribute = "ParentObject_Attribute";
+kony.sync.targetAttribute = "ChildObject_Attribute";
+
+kony.sync.isCleanUpJobCompleted = false;
+
+kony.sync.onBinaryDownloadFunction = "onBinaryDownload";
+kony.sync.onBinaryUploadFunction = "onBinaryUpload";
 //  **************** End KonySyncGlobals.js*******************
 
 
@@ -6102,6 +7216,8 @@ kony.sync.getOriginalDeviceID = function () {
 
 kony.sync.removeprovisioncolumns = function (row, columns, isArray, isUpdate) {
 	sync.log.trace("Entering kony.sync.removeprovisioncolumns ");
+	//remove the blobref_columns from the columns.
+
 	var length = columns.length;
 	var record = [];
 	var  i = null;
@@ -7525,6 +8641,92 @@ kony.sync.getPlatformName = function(){
 	//#endif
 	return returnVal;
 };
+kony.sync.getRelationshipsForTable = function(tablename) {
+	sync.log.trace("Entering kony.sync.getRelationshipsForTable for table "+tablename);
+	var scopename = kony.sync.scopes.syncTableScopeDic[tablename];
+	var scope = kony.sync.scopes[scopename];
+	var relationShips = scope.syncTableDic[tablename].Relationships;
+
+	return relationShips;
+};
+
+kony.sync.getChildRecords = function(tablename, valuesTable) {
+	sync.log.trace("Entering kony.sync.getChildRecords for table "+tablename+" and values "+JSON.stringify(valuesTable));
+	var childRecords = [];
+	var relationShips = kony.sync.getRelationshipsForTable(tablename);
+
+	if(!kony.sync.isNullOrUndefined(relationShips) && relationShips.hasOwnProperty(kony.sync.oneToMany)) {
+		//remove the child record from the values and add it to child records.
+		for(var j = 0; j < relationShips[kony.sync.oneToMany].length; j++) {
+			var childRecord = {};
+			var relationshipTargetObject = relationShips[kony.sync.oneToMany][j][kony.sync.targetObject];
+			//if there exists relationship target object, and values has child object which is not a null value.
+			if(!kony.sync.isNullOrUndefined(relationshipTargetObject) && valuesTable.hasOwnProperty(relationshipTargetObject)
+				&& !kony.sync.isNullOrUndefined(valuesTable[relationshipTargetObject])) {
+				childRecord[relationshipTargetObject] = valuesTable[relationshipTargetObject];
+				childRecords.push(childRecord);
+				delete valuesTable[relationshipTargetObject];
+			}
+		}
+	}
+	return childRecords;
+};
+
+kony.sync.getParentRelationshipAttributes = function(childTable, parentTable) {
+	sync.log.trace("Enterting kony.sync.getParentRelationshipAttributes for child "+childTable+" and parent "+parentTable);
+	if(childTable && parentTable) {
+		var scopename = kony.sync.scopes.syncTableScopeDic[childTable];
+		var scope = kony.sync.scopes[scopename];
+		var relationShipMap = scope.syncTableDic[parentTable + kony.sync.parentRelationshipMap];
+		//if there exists relationship and there are relationship attributes, return them. else return null
+		if (!kony.sync.isNullOrUndefined(relationShipMap) && relationShipMap.hasOwnProperty(childTable)) {
+			return relationShipMap[childTable];
+		}
+	}
+	return null;
+};
+
+kony.sync.getPkTableFromJSON = function(valuesTable, tableName) {
+	sync.log.trace("Entering kony.sync.getPkTableFromJSON for valuesTbale "+JSON.stringify(valuesTable)+" and table "+tableName);
+	var pkTable = {};
+	if(valuesTable && tableName) {
+		var scopename = kony.sync.scopes.syncTableScopeDic[tableName];
+		var scope = kony.sync.scopes[scopename];
+		var pkColumns = scope.syncTableDic[tableName].Pk_Columns;
+		for (var pkCount = 0; pkCount < pkColumns.length; pkCount++) {
+			if (valuesTable.hasOwnProperty(pkColumns[pkCount])) {
+				pkTable[pkColumns[pkCount]] = valuesTable[pkColumns[pkCount]];
+				delete valuesTable[pkColumns[pkCount]];
+			} else {
+				//pkColumn field not found. error.
+				sync.log.error("pkcolumn field "+pkColumns[pkCount]+ " not found in "+JSON.stringify(valuesTable));
+				return false;
+			}
+		}
+	}
+	return pkTable;
+};
+
+
+
+kony.sync.queryTable = function(tx, tablename, selectClause, whereClause, limitOffset) {
+	sync.log.trace("Entering kony.sync.queryTable for table "+tablename+" and select clause "+
+		JSON.stringify(selectClause)+ " with where clause "+JSON.stringify(whereClause));
+
+	var query = kony.sync.qb_createQuery();
+	kony.sync.qb_select(query, selectClause);
+	kony.sync.qb_from(query, tablename);
+	kony.sync.qb_where(query, whereClause);
+	if(!kony.sync.isNullOrUndefined(limitOffset)) {
+		kony.sync.qb_limitOffset(query, limitOffset, kony.sync.blobManager.ONDEMAND_FETCH_OFFSET);
+	}
+	var query_compile = kony.sync.qb_compile(query);
+	var sql = query_compile[0];
+	var params = query_compile[1];
+	sync.log.trace("Executing query ", query, " with params ", JSON.stringify(params));
+	var result_set = kony.sync.executeSql(tx, sql, params);
+	return result_set;
+};
 //  **************** End KonySyncHelper.js*******************
 
 
@@ -7533,7 +8735,7 @@ if(typeof(kony.sync)=== "undefined"){
 	kony.sync = {};
 }
 
-if(typeof(sync)=== "undefined"){
+if(typeof(sync)=== "undefined") {
 	sync = {};
 }
 
@@ -7543,11 +8745,26 @@ if(typeof(kony.sync.blobManager) === "undefined") {
 
 //Initializes the DB with Generated Scope
 sync.init = function(on_sync_init_success, on_sync_init_error) {
-	if(kony.sync.isValidJSTable(on_sync_init_success)===true){
+	if(kony.sync.isValidJSTable(on_sync_init_success)===true) {
 		//new style, user called as sync.init(config)
+		//upload binary listener..
+		if(!kony.sync.isNullOrUndefined(on_sync_init_success[kony.sync.onBinaryUploadFunction]) &&
+			kony.sync.isValidFunctionType(on_sync_init_success[kony.sync.onBinaryUploadFunction])) {
+			sync.log.trace("sync.init - registering upload binary listener..");
+			kony.sync.onBinaryUpload = on_sync_init_success[kony.sync.onBinaryUploadFunction];
+		}
+
+		//download binary listener.
+		if(!kony.sync.isNullOrUndefined(on_sync_init_success[kony.sync.onBinaryDownloadFunction]) &&
+			kony.sync.isValidFunctionType(on_sync_init_success[kony.sync.onBinaryDownloadFunction])) {
+			sync.log.trace("sync.init - registering download binary listener..");
+			kony.sync.onBinaryDownload = on_sync_init_success[kony.sync.onBinaryDownloadFunction];
+		}
+
 		on_sync_init_error = on_sync_init_success[kony.sync.onSyncInitErrorParam];
 		kony.sync.createDBEncryptionKey(on_sync_init_success[kony.sync.deviceDBEncryptionKeyParam]);
 		on_sync_init_success = on_sync_init_success[kony.sync.onSyncInitSuccessParam];
+
 	}
     // Create the database from xml. It also contains the provisioning commands
     var syncscopes = konysyncClientSyncConfig.ArrayOfSyncScope;
@@ -7560,6 +8777,8 @@ sync.init = function(on_sync_init_success, on_sync_init_error) {
         var createDB = false;
         syncscopes.syncTableScopeDic = [];
         syncscopes.syncScopeBlobInfoMap = {};
+		syncscopes.syncToDeviceMap = {};
+		syncscopes.syncScopeRelationAttributesMap = {};
         var currentscope = null;
         var currenttemptable = null;
         sync.log.info("loading DB");
@@ -7711,6 +8930,12 @@ sync.init = function(on_sync_init_success, on_sync_init_error) {
 										syncscopes.syncScopeBlobInfoMap[syncTable.Name][kony.sync.columns] = [];
 									}
 									syncscopes.syncScopeBlobInfoMap[syncTable.Name][kony.sync.columns].push(syncColumn.Name);
+
+									//in case of ifrecordvalue type, map the synctodevicefield.
+									if(syncColumn.hasOwnProperty(kony.sync.binaryPolicy) &&
+										syncColumn[kony.sync.binaryPolicy] === kony.sync.ifRecordValue) {
+										syncscopes.syncToDeviceMap[syncTable.Name + syncColumn.Name] = syncColumn[kony.sync.syncToDeviceField];
+									}
 								}
 							}
 						}
@@ -7837,23 +9062,46 @@ sync.init = function(on_sync_init_success, on_sync_init_error) {
 		
 		function checkForStaleScopeCallback(){
 			kony.sync.isResetInProgress = false;
+			//before initializing the thread, perform a clean up job to remove stale records.
+			if(!kony.sync.isNullOrUndefined(sync.util) && !kony.sync.isCleanUpJobCompleted) {
+				sync.log.trace("checkForStaleScopeCallback -> Initializing binary stats");
+				kony.sync.initBinaryStats();
+
+				sync.log.trace("checkForStaleScopeCallback -> trigger clean up job.");
+				kony.sync.blobManager.performCleanUp(function(isError){
+					sync.log.trace("performCleanUp callback isError "+isError);
+					if(!isError) {
+						syncInitComplete();
+					} else {
+						//error occurred in performCleanup.
+						kony.sync.verifyAndCallClosure(on_sync_init_error, kony.sync.errorObject);
+						kony.sync.errorObject = null;
+					}
+				});
+			} else {
+				sync.log.trace("checkForStaleScopeCallback -> Do not trigger clean up job.");
+				syncInitComplete();
+			}
+		}
+
+		function syncInitComplete() {
+			sync.log.trace("syncInitComplete...");
 			kony.sync.syncInitialized = true;
 			//init the onDemand polling thread
-			//TODO - returns function handler.
 			if(typeof(sync.util) !== "undefined") {
-				 sync.util.onDemandThreadInit(
-					kony.sync.blobManager.getNextOnDemandJob,
+				sync.util.binaryThreadInit(
+					kony.sync.blobManager.prepareJobs,
+					kony.sync.blobManager.getPreparedJobs,
 					kony.sync.blobManager.onDemandUniversalSuccessCallback,
 					kony.sync.blobManager.onDemandUniversalErrorCallback);
+				sync.util.createBlobsDir();
 
 			}
-			//TODO : handling error in thread init.
 			//init the binaryNotifier map
 			kony.sync.blobManager.binaryNotifierMap = {};
-
 			kony.sync.verifyAndCallClosure(on_sync_init_success);
 		}
-		
+
 		function checkForStaleScope(callback){
 			var connection = kony.sync.getConnectionOnly(kony.sync.scopes[0][kony.sync.scopeDataSource], kony.sync.scopes[0][kony.sync.scopeDataSource], on_sync_init_error);
 			if(connection!==null){
@@ -8108,8 +9356,17 @@ sync.getPendingUpload = function(successcallback, errorcallback) {
 			for (var i = 0; i < currentScope.ScopeTables.length; i++) {
 				var syncTable = currentScope.ScopeTables[i];
 				var tbname = syncTable.Name;
+				var columnsDic = currentScope.syncTableDic[tbname].Columns;
+				var columns = "";
+				for (var j = 0; j < columnsDic.length; j++) {
+					if(j==0){
+					 	columns = columns + columnsDic[j].Name;
+					} else {
+						columns = columns + ", " + columnsDic[j].Name;
+					}
+				}
 				var currentversion = kony.sync.getCurrentVersionNumber(tbname);
-				var sql = "select * from " + tbname + " WHERE " + kony.sync.mainTableChangeTypeColumn + " is not null AND " + kony.sync.mainTableChangeTypeColumn + " <> -1 AND " + kony.sync.mainTableSyncVersionColumn + " = " + currentversion + " AND " + kony.sync.mainTableChangeTypeColumn + " NOT LIKE '9%'";
+				var sql = "select "+ columns +" from " + tbname + kony.sync.historyTableName + " WHERE " + kony.sync.mainTableChangeTypeColumn + " is not null AND " + kony.sync.mainTableChangeTypeColumn + " <> -1 AND " + kony.sync.mainTableSyncVersionColumn + " = " + currentversion + " AND " + kony.sync.mainTableChangeTypeColumn + " NOT LIKE '9%'";
 				if(single_transaction_callback_local(sql, null, tbname)===false){
 					return;
 				}
@@ -8311,6 +9568,8 @@ sync.getAllPendingUploadInstances = function(retrieveOnlyCount, successcallback,
 	}
 };
 
+
+
 kony.sync.checkForUpdate556to559Schema = function(tx){
 	var sql = "select count(*) from " + kony.sync.chunkTableName;
 	var resultSet = kony.sync.executeSql(tx, sql, null,null,false);
@@ -8340,6 +9599,191 @@ kony.sync.checkForUpdate559to560Schema = function(tx){
 		];
 	}
 	return kony.sync.executeQueriesInTransaction(tx, kony.sync.DDL559to560Update);
+};
+
+sync.getFailedBinaryRecords = function(isDownload, tablename, columnname, successCallback, errorCallback) {
+	sync.log.trace("Entering kony.sync.single_insert_execute-> main function");
+
+	var isError = false;
+	var statusResponse = [];
+	function single_transaction_success_callback() {
+		if(!isError) {
+			sync.log.trace("kony.sync.getFailedBinaryRecords - single_transaction_success_callback...");
+			kony.sync.verifyAndCallClosure(successCallback, statusResponse);
+		} else {
+			kony.sync.verifyAndCallClosure(errorCallback, kony.sync.errorObject);
+		}
+	}
+
+	function single_transaction_failure_callback() {
+		sync.log.trace("kony.sync.getFailedBinaryRecords - single_transaction_error_callback...");
+		kony.sync.verifyAndCallClosure(errorCallback, kony.sync.errorObject);
+	}
+
+	function single_transaction_callback(tx) {
+		sync.log.trace("kony.sync.getFailedBinaryRecords - single_transaction_callback...");
+		var selectClause = [kony.sync.blobManager.id, kony.sync.blobManager.tableName, kony.sync.blobManager.columnName];
+
+		var whereClause = [];
+		var requiredState = kony.sync.blobManager.DOWNLOAD_FAILED;
+		if(!isDownload) {
+			requiredState = kony.sync.blobManager.UPLOAD_FAILED;
+		}
+		kony.table.insert(whereClause, {
+				key:kony.sync.blobManager.state,
+				value:requiredState,
+				optype:"EQ",
+				comptype:"AND"}
+		);
+
+		//if tablename is passed.. add it to the where clause..
+		if(!kony.sync.isNullOrUndefined(tablename)) {
+			kony.table.insert(whereClause, {
+					key:kony.sync.blobManager.tableName,
+					value:tablename,
+					optype:"EQ",
+					comptype:"AND"}
+			);
+
+			//if column name is passed, add it to the whereclause..
+			if(!kony.sync.isNullOrUndefined(columnname)) {
+				kony.table.insert(whereClause, {
+						key:kony.sync.blobManager.columnName,
+						value:columnname,
+						optype:"EQ",
+						comptype:"AND"}
+				);
+			}
+		}
+
+		var resultset = kony.sync.queryTable(tx, kony.sync.blobStoreManagerTable, selectClause, whereClause);
+
+		if(resultset) {
+			for(var k = 0; k < resultset.rows.length; k++) {
+				var rowItem = kony.db.sqlResultsetRowItem(tx, resultset, k);
+				var binaryColumnName = kony.sync.binaryMetaColumnPrefix+rowItem[kony.sync.blobManager.columnName];
+				var tbname =  rowItem[kony.sync.blobManager.tableName];
+				var pkColumns = kony.sync.currentScope.syncTableDic[tbname].Pk_Columns;
+
+				var blobWhereClause = [{
+					key: binaryColumnName,
+					value: rowItem[kony.sync.blobManager.id]
+				}];
+
+				var parentResultSet = kony.sync.queryTable(tx, tbname, pkColumns, blobWhereClause);
+				if(!parentResultSet) {
+					return;
+				}
+				for(var rowCount = 0; rowCount < parentResultSet.rows.length; rowCount++) {
+					var parentRowItem = kony.db.sqlResultsetRowItem(tx, parentResultSet, rowCount);
+					var response = {};
+					for(var pkCount in pkColumns) {
+						var pkTable = {};
+						pkTable[pkColumns[pkCount]] = parentRowItem[pkColumns[pkCount]];
+					}
+					response.primaryKeys = pkTable;
+					response.tableName = tbname;
+					response.binaryColumn = rowItem[kony.sync.blobManager.columnName];
+					statusResponse.push(response);
+				}
+			}
+		}
+	}
+
+	var connection = kony.sync.getConnectionOnly(kony.sync.currentScope[kony.sync.scopeDataSource],
+		kony.sync.currentScope[kony.sync.scopeDataSource],errorCallback, "fetch binary failed records..");
+	if(connection !== null){
+		kony.sync.startTransaction(connection, single_transaction_callback, single_transaction_success_callback, single_transaction_failure_callback);
+	}
+};
+
+sync.getStatusForBinary = function(tbname, columnName, wc, successCallback, errorCallback) {
+
+	function single_transaction_callback(tx) {
+		//first fetch the pks of the required records using the where clause.
+		var response = [];
+		var scopename = kony.sync.scopes.syncTableScopeDic[tbname];
+		var scope = kony.sync.scopes[scopename];
+		var reqColumns = scope.syncTableDic[tbname].Pk_Columns;
+
+		var blobRef_column = kony.sync.binaryMetaColumnPrefix + columnName;
+		reqColumns.push(blobRef_column);
+
+		var query = kony.sync.qb_createQuery();
+		kony.sync.qb_select(query, reqColumns);
+		kony.sync.qb_from(query, tbname);
+		kony.sync.qb_where(query, wc);
+
+		var query_compile = kony.sync.qb_compile(query);
+		var sql = query_compile[0];
+		var params = query_compile[1];
+
+		var result_set = kony.sync.executeSql(tx, sql, params, errorCallback);
+		if(result_set !== null && result_set !== false) {
+			if(result_set.rows.length > 0) {
+				for (var k = 0; k < result_set.rows.length; k++) {
+					var statusResponse = {};
+					var rowItem = kony.db.sqlResultsetRowItem(tx, result_set, k);
+					var blobRef = rowItem[blobRef_column];
+					//delete the  blob ref column from result set. Now row item will have PkColumn values.
+					delete rowItem[blobRef_column];
+
+					statusResponse.primaryKeys = rowItem;
+					if (blobRef === kony.sync.blobRefNotDefined || blobRef === kony.sync.blobRefNotFound) {
+						statusResponse.statusCode = 0;
+						statusResponse.statusMessage = "Binary record not downloaded";
+					} else {
+						//blob ref exists. query the blob store manager.
+						var blobMeta = kony.sync.blobManager.getBlobMetaDetails(tx, blobRef, errorCallback);
+						if (blobMeta !== null && blobMeta !== false) {
+							statusResponse.statusCode = blobMeta[kony.sync.blobManager.state];
+							statusResponse.statusMessage = kony.sync.blobManager.states[statusResponse.statusCode];
+						}
+					}
+					response.push(statusResponse);
+				}
+			}
+			sync.log.trace("single_binary_select_status_execute -> response "+JSON.stringify(response));
+			kony.sync.verifyAndCallClosure(successCallback, response);
+		}
+	}
+
+	function single_transaction_success_callback() {
+		sync.log.trace("Entering kony.sync.single_binary_select_status_execute->single_select_binary_transaction_success");
+	}
+
+	function single_transaction_error_callback() {
+		sync.log.error("Entering kony.sync.single_binary_select_status_execute->single_select_binary_transaction_failed");
+
+	}
+
+	sync.log.trace("Entering kony.sync.single_binary_select_status_execute-> main function");
+	if(kony.sync.isValidFunctionType(successCallback) && kony.sync.isValidFunctionType(errorCallback)) {
+		if(columnName === undefined || typeof(columnName) !== "string" || tbname === undefined ||
+			typeof(tbname) !== "string") {
+			var error = kony.sync.getErrorTable(
+				kony.sync.errorCodeInvalidColumnParams,
+				kony.sync.getErrorMessage(kony.sync.errorCodeInvalidColumnParams)
+			);
+			kony.sync.verifyAndCallClosure(errorCallback, error);
+			return;
+		}
+		var downloadPolicy = kony.sync.getDownloadPolicy(tbname, columnName);
+		sync.log.trace("download policy for the column "+tbname+"."+columnName+ " is "+downloadPolicy);
+		if(downloadPolicy !== kony.sync.notSupported) {
+			var connection = kony.sync.getConnectionOnly(kony.sync.currentScope[kony.sync.scopeDataSource],
+				kony.sync.currentScope[kony.sync.scopeDataSource], errorCallback, "fetch status for binary records..");
+			if(connection !== null){
+				kony.sync.startTransaction(connection, single_transaction_callback, single_transaction_success_callback, single_transaction_error_callback);
+			}
+		} else {
+			var error = kony.sync.getErrorTable(
+				kony.sync.errorCodeDownloadPolicyNotSupported,
+				kony.sync.getErrorMessage(kony.sync.errorCodeDownloadPolicyNotSupported, tbname+"."+columnName)
+			);
+			kony.sync.verifyAndCallClosure(errorCallback, error);
+		}
+	}
 };
 //  **************** End KonySyncInit.js*******************
 
@@ -8515,6 +9959,10 @@ if(typeof(kony.sync)=== "undefined"){
 }
 if(typeof(sync)=== "undefined"){
 	sync = {};
+}
+
+if(typeof(kony.sync.blobManager) === "undefined") {
+	kony.sync.blobManager = {};
 }
 
 // gets the time when dbname was last syced
@@ -8902,7 +10350,7 @@ kony.sync.clearSyncOriginal = function (dbname, tbname) {
 	kony.sync.single_execute_sql(dbname, sql, null, null);
 };
 
-kony.sync.clearDataForCOE = function(tx, scopename, tablename, wcs, newwcs, changeType, pkset, seqNo, values, isError){
+kony.sync.clearDataForCOE = function(tx, scopename, tablename, wcs, newwcs, changeType, pkset, seqNo, values, isError) {
 	sync.log.trace("Entering kony.sync.clearDataForCOE ");
 	if (kony.sync.isNullOrUndefined(pkset) && isError) {
 		return false;
@@ -8914,10 +10362,57 @@ kony.sync.clearDataForCOE = function(tx, scopename, tablename, wcs, newwcs, chan
 	var params = null;
 	//hashSum also needs to be updated to avoid conflicts.
 	var hashSum = values[kony.sync.historyTableHashSumColumn];
+
+	//update the binary to UPLOAD ACCEPTED.
+	//for onDemandColumns,
+	var onDemandColumns = kony.sync.getBinaryColumnsByPolicy(tablename, kony.sync.onDemand);
+	sync.log.trace("onDemandColumns for " + tablename + " are " + JSON.stringify(onDemandColumns));
+	var pkTable = {};
+	var binaryColumns = kony.sync.getBinaryColumns(tablename);
+	for(var j = 0; j < wcs.length; j++) {
+		pkTable[wcs[j].key] = wcs[j].value;
+	}
+
+	if(!kony.sync.isNullOrUndefined(binaryColumns)) {
+		for (var j = 0; j < binaryColumns.length; j++) {
+			if(kony.sync.getDownloadPolicy(tablename, binaryColumns[j]) !== kony.sync.inline) {
+				var blobRef = kony.sync.getBlobRef(tx, tablename, binaryColumns[j], pkTable, updateBlobStatusCallback);
+				sync.log.trace("blobRef for pkTable " + JSON.stringify(pkTable) + " is " + blobRef);
+
+				if (blobRef !== kony.sync.blobRefNotFound && blobRef !== kony.sync.blobRefNotDefined) {
+					//fetch the current state of the blob before upload_accepting.
+					var blobMeta = kony.sync.blobManager.getBlobMetaDetails(tx, blobRef, updateBlobStatusCallback);
+					if (!kony.sync.isNullOrUndefined(blobMeta) && blobMeta !== false) {
+						//if the blob entry is in valid state then accept the binary for upload.
+						if (blobMeta[kony.sync.blobManager.state] === kony.sync.blobManager.NO_OPERATION) {
+							sync.log.trace("marking the blob entry for UPLOAD for blob " + JSON.stringify(blobMeta));
+							var valuesTable = {};
+							valuesTable[kony.sync.blobManager.state] = kony.sync.blobManager.UPLOAD_ACCEPTED;
+							var results = kony.sync.blobManager.updateBlobManager(tx, blobRef, valuesTable, updateBlobStatusCallback);
+							if (results === null || results === false) {
+								return 0;
+							}
+							//increment total number of upload jobs..
+							kony.sync.incrementTotalJobs(false);
+							sync.log.trace("updated the state of the blob entry to UPLOAD_ACCEPTED");
+						} else {
+							sync.log.error("binary file not in a valid state to get picked for upload. ");
+							return 0;
+						}
+					} else {
+						return 0;
+					}
+				}
+
+				//invoke the notifier..
+				kony.sync.invokeBinaryNotifiers(false);
+			}
+		}
+	}
 	//in case I got client pk from server
 	if (!kony.sync.isNullOrUndefined(pkset)) {
 
-	//update original table pk with new pk from server
+		//update original table pk with new pk from server
 		query = kony.sync.qb_createQuery();
 		kony.sync.qb_update(query, tablename + kony.sync.originalTableName);
 		kony.sync.qb_set(query, pkset);
@@ -8925,55 +10420,55 @@ kony.sync.clearDataForCOE = function(tx, scopename, tablename, wcs, newwcs, chan
 		query_compile = kony.sync.qb_compile(query);
 		sql = query_compile[0];
 		params = query_compile[1];
-		if(kony.sync.executeSql(tx, sql, params)===false){
+		if (kony.sync.executeSql(tx, sql, params) === false) {
 			return 0;
 		}
-		
+
 		//update main table pk with new pk from server
 		query = kony.sync.qb_createQuery();
-				kony.sync.qb_update(query, tablename);
-				kony.sync.qb_set(query, pkset);
-				kony.sync.qb_where(query, whereClause);
+		kony.sync.qb_update(query, tablename);
+		kony.sync.qb_set(query, pkset);
+		kony.sync.qb_where(query, whereClause);
 		query_compile = kony.sync.qb_compile(query);
 		sql = query_compile[0];
 		params = query_compile[1];
-		if(kony.sync.executeSql(tx, sql, params) === false){
+		if (kony.sync.executeSql(tx, sql, params) === false) {
 			return 0;
 		}
-		
+
 		//update history table pk with new pk from server
 		pkset[kony.sync.historyTableHashSumColumn] = hashSum;
 		query = kony.sync.qb_createQuery();
-					kony.sync.qb_update(query, tablename + kony.sync.historyTableName);
-					kony.sync.qb_set(query, pkset);
-					kony.sync.qb_where(query, whereClause);
+		kony.sync.qb_update(query, tablename + kony.sync.historyTableName);
+		kony.sync.qb_set(query, pkset);
+		kony.sync.qb_where(query, whereClause);
 		query_compile = kony.sync.qb_compile(query);
 		sql = query_compile[0];
 		params = query_compile[1];
-		if(kony.sync.executeSql(tx, sql, params) === false){
+		if (kony.sync.executeSql(tx, sql, params) === false) {
 			return 0;
 		}
-		if(isError){
+		if (isError) {
 			return false;
 		}
-		
+
 		kony.sync.serverInsertAckCount = kony.sync.serverInsertAckCount + 1;
-		kony.sync.objectLevelInfoMap[tablename][kony.sync.numberOfRowsInsertedAck]=kony.sync.objectLevelInfoMap[tablename][kony.sync.numberOfRowsInsertedAck]+1;
-		
+		kony.sync.objectLevelInfoMap[tablename][kony.sync.numberOfRowsInsertedAck] = kony.sync.objectLevelInfoMap[tablename][kony.sync.numberOfRowsInsertedAck] + 1;
+
 		whereClause = kony.sync.CreateCopy(newwcs);
 	} else if (changeType === "update") {
 		//update history table hashSum for pending records
-		if(!kony.sync.isNullOrUndefined(hashSum)){
+		if (!kony.sync.isNullOrUndefined(hashSum)) {
 			var updateSet = {};
 			updateSet[kony.sync.historyTableHashSumColumn] = hashSum;
 			query = kony.sync.qb_createQuery();
-						kony.sync.qb_update(query, tablename+kony.sync.historyTableName);
-						kony.sync.qb_set(query, updateSet);
-						kony.sync.qb_where(query, whereClause);
+			kony.sync.qb_update(query, tablename + kony.sync.historyTableName);
+			kony.sync.qb_set(query, updateSet);
+			kony.sync.qb_where(query, whereClause);
 			query_compile = kony.sync.qb_compile(query);
 			sql = query_compile[0];
 			params = query_compile[1];
-			if(kony.sync.executeSql(tx, sql, params) === false){
+			if (kony.sync.executeSql(tx, sql, params) === false) {
 				return 0;
 			}
 		}
@@ -8984,13 +10479,19 @@ kony.sync.clearDataForCOE = function(tx, scopename, tablename, wcs, newwcs, chan
 		kony.sync.objectLevelInfoMap[tablename][kony.sync.numberOfRowsDeletedAck] = kony.sync.objectLevelInfoMap[tablename][kony.sync.numberOfRowsDeletedAck] + 1;
 		kony.sync.serverDeleteAckCount = kony.sync.serverDeleteAckCount + 1;
 	}
-	
-	if(kony.sync.clearHistoryTable(tx, tablename, whereClause, seqNo)===false){
+
+	//TODO - throw error.
+	function updateBlobStatusCallback(err) {
+		sync.log.error("error in blobStoreManager update. --> clearDataForCOE " + JSON.stringify(err));
+	}
+
+	if (kony.sync.clearHistoryTable(tx, tablename, whereClause, seqNo) === false) {
 		return 0;
-	}	
+	}
 	return kony.sync.clearMainTableForRemoveAfterUpload(tx, scopename, tablename, whereClause);
-	
+
 };
+
 
 kony.sync.clearMainTableForRemoveAfterUpload = function (tx, scopename, tablename, wcs) {
 	sync.log.trace("Entering kony.sync.clearMainTableForRemoveAfterUpload ");
@@ -9512,14 +11013,20 @@ if (typeof(kony.sync) === "undefined") {
 if (typeof(sync) === "undefined") {
 	sync = {};
 }
+
+if(typeof(kony.sync.blobManager) === "undefined"){
+	kony.sync.blobManager = {};
+}
+
 kony.sync.updateByPK = function (tbname, dbname, relationshipMap, pks, valuestable, successcallback, errorcallback, markForUpload, wcs) {
 	sync.log.trace("Entering kony.sync.updateByPK -> main function");
 	var isSuccess = true;
 	var pkNotFound = false;
 	var isRefIntegrityError = false;
+	var isMarkForuploadInvalid = false ;
 	var updateResult = null;
 	var errObject = null;
-	
+
 	var twcs = [];
 	twcs = kony.sync.CreateCopy(wcs);
 	function single_execute_sql_transaction(tx) {
@@ -9539,20 +11046,41 @@ kony.sync.updateByPK = function (tbname, dbname, relationshipMap, pks, valuestab
 				return;
 			} else if (errObject !== true) {
 				isSuccess = false;
-				isRefIntegrityError = true;	
+				isRefIntegrityError = true;
 				kony.sync.rollbackTransaction(tx);
 				return;
 			} else {
-				var blobStoreIndices = kony.sync.blobstore_update(tx, tbname, valuestable, wcs, false);
-				var konysyncBinaryColumn = null;
-				for(var column in blobStoreIndices) {
-					konysyncBinaryColumn = kony.sync.binaryMetaColumnPrefix + column;
-					delete valuestable[column];
-					valuestable[konysyncBinaryColumn] = blobStoreIndices[column];
-				}				
+				var blobMap = {};
+				if(!kony.sync.isNullOrUndefined(kony.sync.scopes.syncScopeBlobInfoMap[tbname])
+					&& !kony.sync.isNullOrUndefined(kony.sync.scopes.syncScopeBlobInfoMap[tbname][kony.sync.columns])) {
+					var binaryColumns = kony.sync.scopes.syncScopeBlobInfoMap[tbname][kony.sync.columns];
+					for(var i=0; i<binaryColumns.length; i++){
+						if(!kony.sync.isNullOrUndefined(valuestable[binaryColumns[i]]) && valuestable[binaryColumns[i]].length > 0)
+							blobMap[binaryColumns[i]] = valuestable[binaryColumns[i]];
+						delete valuestable[binaryColumns[i]];
+					}
+				}
+				
 				updateResult = kony.sync.update(tx, tbname, valuestable, wcs, markForUpload, errorcallback);
 				if (updateResult === false) {
 					isSuccess = false;
+				} else if (updateResult === kony.sync.errorCodeInvalidMarkForUploadValue){
+				    isMarkForuploadInvalid = true;
+				    isSuccess = false;
+				} else {
+					if(Object.keys(blobMap).length > 0) {
+						var blobStoreIndices = kony.sync.blobstore_update(tx, tbname, blobMap, wcs, false, errorcallback);
+						if(!kony.sync.isNullOrUndefined(blobStoreIndices)){
+							if(Object.keys(blobStoreIndices).length > 0) {
+								var results = kony.sync.blobManager.updateParentWithBlobReference(tx, tbname, blobStoreIndices, wcs, errorcallback);
+								if(results === false || results === null) {
+									isSuccess = false;
+								}
+							}
+						} else {
+							isSuccess = false;
+						}
+					}
 				}
 			}
 		} else {
@@ -9574,13 +11102,18 @@ kony.sync.updateByPK = function (tbname, dbname, relationshipMap, pks, valuestab
 
 	function single_execute_sql_transactionSucessCallback() {
 		sync.log.trace("Entering kony.sync.updateByPK->single_execute_sql_transactionSucessCallback -> isSuccess -> " + isSuccess);
-		if(pkNotFound === true || isSuccess === false){
-			kony.sync.pkNotFoundErrCallback(errorcallback,tbname);
-			return;
+		if(pkNotFound === true){
+		    kony.sync.pkNotFoundErrCallback(errorcallback,tbname);
+		    return;
+		} else if(isMarkForuploadInvalid){
+		    errorcallback(kony.sync.getErrorTable(kony.sync.errorCodeInvalidMarkForUploadValue, kony.sync.getErrorMessage(kony.sync.errorCodeInvalidMarkForUploadValue, tbname)));
+		} else if(isSuccess === false){
+		    kony.sync.pkNotFoundErrCallback(errorcallback,tbname);
+		    return;
 		} else {
-			kony.sync.verifyAndCallClosure(successcallback, {
-				rowsupdated : 1
-			});
+		    kony.sync.verifyAndCallClosure(successcallback, {
+		        rowsupdated : 1
+		    });
 		}
 	}
 	try {
@@ -9594,6 +11127,7 @@ kony.sync.updateByPK = function (tbname, dbname, relationshipMap, pks, valuestab
 		kony.sync.verifyAndCallClosure(errorcallback, kony.sync.getErrorTable(kony.sync.errorUnknown, kony.sync.getErrorMessage(kony.sync.errorUnknown, "Rollback", e), null));
 	}
 };
+
 
 kony.sync.checkForFalseUpdateInTransaction = function (tx, dbname, tbname, twcs, markForUpload, errorcallback) {
 	sync.log.trace("Entering kony.sync.checkForFalseUpdate ");
@@ -10287,50 +11821,75 @@ kony.sync.single_binary_select_ondemand_execute = function(dsname, tbname, colum
 
 		//validate whether we get all pks in the pk table.
 		pks = kony.sync.validatePkTable(pkColumns, pks);
-
+		sync.log.trace("after validation pks are "+JSON.stringify(pks));
 		if(!kony.sync.isNullOrUndefined(pks)) {
 
 			var blobRef = kony.sync.getBlobRef(tx, tbname, columnName, pks ,errorCallback);
+			sync.log.trace(kony.sync.binaryMetaColumnPrefix+columnName+" value is "+blobRef);
+
 			if(!kony.sync.isNullOrUndefined(blobRef)) {
-				if (blobRef === -1) {
-					//no record exists..
+				if (blobRef === kony.sync.blobRefNotFound) {
+					//blobref is not found.
+					sync.log.trace("blobref not found. ");
 					response.pkTable = pks;
 					if(blobType === kony.sync.BlobType.BASE64) {
 						response.base64 = null;
 					} else {
 						response.filePath = null;
 					}
-					successCallback(response);
+					kony.sync.verifyAndCallClosure(successCallback, response);
 
-				} else if(blobRef === "NULL") {
-					//trigger download..
-					kony.sync.blobManager.getBlobOnDemand(tx, null, blobType, tbname,
-						columnName, config, pks, successCallback, errorCallback);
+
 				}
 				else {
-					//fetch from blob store manager.
-					kony.sync.blobManager.getBlobOnDemand(tx, blobRef, blobType, tbname,
-						columnName, config, pks, successCallback, errorCallback);
+					//check if there is any context info.
+					var blobContext = kony.sync.getBlobContext(tx, tbname, columnName, pks ,errorCallback);
+					if (blobRef === kony.sync.blobRefNotDefined) {
+						if(blobContext !== kony.sync.blobRefNotDefined) {
+							//trigger download..
+							sync.log.trace("blobref not defined. triggering download");
+							kony.sync.blobManager.getBlobOnDemand(tx, kony.sync.blobRefNotDefined, blobType, tbname,
+								columnName, config, pks, successCallback, errorCallback);
+						} else {
+							sync.log.info("no context available for download.");
+							response.pkTable = pks;
+
+							if(blobType === kony.sync.BlobType.BASE64) {
+								response.base64 = null;
+							} else {
+								response.filePath = null;
+							}
+							kony.sync.verifyAndCallClosure(successCallback, response);
+
+						}
+					}
+					else {
+						//fetch from blob store manager.
+						sync.log.trace("blobref defined. fetching from blobStoreManager table");
+						kony.sync.blobManager.getBlobOnDemand(tx, blobRef, blobType, tbname,
+							columnName, config, pks, successCallback, errorCallback);
+					}
 				}
-			} 
+			}
+
 		} else {
 			//error invalid pks.
-			kony.print("Invalid pk table..");
-			var error = {};
-			errorCallback(error);
+			var error = kony.sync.getErrorTable(
+				kony.sync.errorCodeInvalidPksGiven,
+				kony.sync.getErrorMessage(kony.sync.errorCodeInvalidPksGiven, tbname)
+			);
+			kony.sync.verifyAndCallClosure(errorCallback, error);
+
 		}
 
 	}
 
-	if(kony.sync.isBinaryColumn(tbname, columnName) !== -1) {
-		var connection = kony.sync.getConnectionOnly(dsname, dsname, errorCallback);
-		if(connection !== null){
-			kony.sync.startTransaction(connection, single_transaction_callback, single_transaction_success_callback, single_transaction_error_callback);
-		}
-	} else {
-		//not a binary column. return empty object.
-		successCallback(response);
+	var connection = kony.sync.getConnectionOnly(dsname, dsname, errorCallback);
+	if(connection !== null){
+		kony.sync.startTransaction(connection, single_transaction_callback, single_transaction_success_callback,
+			single_transaction_error_callback);
 	}
+
 };
 
 kony.sync.single_binary_select_inline_execute = function(dsname, tbname, columnName, pks, config, blobType,
@@ -10365,7 +11924,7 @@ kony.sync.single_binary_select_inline_execute = function(dsname, tbname, columnN
 					} else {
 						response.filePath = null;
 					}
-					successCallback(response);
+					kony.sync.verifyAndCallClosure(successCallback, response);
 
 				} else {
 					//fetch from blob store manager.
@@ -10380,15 +11939,17 @@ kony.sync.single_binary_select_inline_execute = function(dsname, tbname, columnN
 				} else {
 					response.filePath = null;
 				}
-				successCallback(response);
+				kony.sync.verifyAndCallClosure(successCallback, response);
+
 			}
 		} else {
 			//error invalid pks.
 			var error = kony.sync.getErrorTable(
 				kony.sync.errorCodeInvalidPksGiven,
-				kony.sync.getErrorMessage(kony.sync.errorCodeInvalidPksGiven)
+				kony.sync.getErrorMessage(kony.sync.errorCodeInvalidPksGiven, tbname)
 			);
-			errorCallback(error);
+			kony.sync.verifyAndCallClosure(errorCallback, error);
+
 		}
 
 	}
@@ -10400,110 +11961,372 @@ kony.sync.single_binary_select_inline_execute = function(dsname, tbname, columnN
 		}
 	} else {
 		//not a binary column. return empty object.
-		successCallback(response);
+		sync.log.warn("Request column is not a binary column. Empty response is sent");
+		kony.sync.verifyAndCallClosure(successCallback, response);
+
+	}
+};
+
+
+
+kony.sync.single_binary_select_execute = function(dsname, tbname, columnName, pks, config, blobType,
+												  successCallback, errorCallback) {
+	if(kony.sync.isValidFunctionType(successCallback) && kony.sync.isValidFunctionType(errorCallback)) {
+		if(columnName === undefined || typeof(columnName) !== "string" || tbname === undefined ||
+			typeof(tbname) !== "string") {
+			var error = kony.sync.getErrorTable(
+				kony.sync.errorCodeInvalidColumnParams,
+				kony.sync.getErrorMessage(kony.sync.errorCodeInvalidColumnParams)
+			);
+			kony.sync.verifyAndCallClosure(errorCallback, error);
+
+			return;
+		}
+		var downloadPolicy = kony.sync.getDownloadPolicy(tbname, columnName);
+		sync.log.trace("download policy for the column "+tbname+"."+columnName+ " is "+downloadPolicy);
+		if(downloadPolicy !== kony.sync.notSupported) {
+			if(downloadPolicy !== kony.sync.inline) {
+				kony.sync.single_binary_select_ondemand_execute(dsname, tbname, columnName, pks,
+					config, blobType, successCallback, errorCallback);
+			} else {
+				//call inline base64 fetch.
+				kony.sync.single_binary_select_inline_execute(dsname, tbname, columnName, pks,
+					config, blobType, successCallback, errorCallback);
+			}
+		} else {
+			var error = kony.sync.getErrorTable(
+				kony.sync.errorCodeDownloadPolicyNotSupported,
+				kony.sync.getErrorMessage(kony.sync.errorCodeDownloadPolicyNotSupported, tbname+"."+columnName)
+			);
+			kony.sync.verifyAndCallClosure(errorCallback, error);
+		}
 	}
 };
 
 kony.sync.single_binary_select_base64_execute = function(dsname, tbname, columnName, pks, config,
 														 successCallback, errorCallback){
 	sync.log.trace("Entering kony.sync.single_binary_select_base64_execute-> main function");
-	if(kony.sync.isValidFunctionType(successCallback) && kony.sync.isValidFunctionType(errorCallback)) {
-		if(columnName === undefined || typeof(columnName) !== "string") {
-			//TODO: create an appropriate error object
-			var err = {};
-			errorCallback(err);
-			return;
-		}
-		var downloadPolicy = kony.sync.getDownloadPolicy(tbname, columnName);
-		if(!kony.sync.isNullOrUndefined(downloadPolicy)) {
-			if(downloadPolicy === "Attachment") {
-				kony.sync.single_binary_select_ondemand_execute(dsname, tbname, columnName, pks,
-					config, kony.sync.BlobType.BASE64, successCallback, errorCallback);
-			} else {
-				//call inline base64 fetch.
-				kony.sync.single_binary_select_inline_execute(dsname, tbname, columnName, pks,
-					config, kony.sync.BlobType.BASE64, successCallback, errorCallback);
-			}
-		} else {
-			//TODO: create an appropriate error object - invalid column.
-			var err = {};
-			errorCallback(err);
-			return;
-		}
-	} else {
-		//invalid callbacks. return
-		return;
-	}
+	kony.sync.single_binary_select_execute(dsname, tbname, columnName, pks, config, kony.sync.BlobType.BASE64,
+		successCallback, errorCallback);
 };
 
 kony.sync.single_binary_select_file_execute = function(dsname, tbname, columnName, pks, config,
 													   successCallback, errorCallback){
-	sync.log.trace("Entering kony.sync.single_binary_select_base64_execute-> main function");
-	if(kony.sync.isValidFunctionType(successCallback) && kony.sync.isValidFunctionType(errorCallback)) {
-		if(columnName === undefined || typeof(columnName) !== "string") {
-			//TODO: create an appropriate error object
-			var err = {};
-			errorCallback(err);
-			return;
-		}
-		var downloadPolicy = kony.sync.getDownloadPolicy(tbname, columnName);
-		if(!kony.sync.isNullOrUndefined(downloadPolicy)) {
-			if(downloadPolicy === "Attachment") {
-				kony.sync.single_binary_select_ondemand_execute(dsname, tbname, columnName, pks,
-					config, kony.sync.BlobType.FILE, successCallback, errorCallback);
-			} else {
-				//call inline base64 fetch.
-				kony.sync.single_binary_select_inline_execute(dsname, tbname, columnName, pks,
-					config, kony.sync.BlobType.FILE, successCallback, errorCallback);
-			}
-		} else {
-			//TODO: create an appropriate error object -- invalid column.
-			var err = {};
-			errorCallback(err);
-		}
-	}
+	sync.log.trace("Entering kony.sync.single_binary_select_file_execute-> main function");
+	kony.sync.single_binary_select_execute(dsname, tbname, columnName, pks, config, kony.sync.BlobType.FILE,
+		successCallback, errorCallback);
 };
 
+/**
+ * API is used to fetch stats of binary.. (state, status, error, lastUpdatedTimeStamp)
+ * @param tbname
+ * @param columnName
+ * @param wc
+ * @param successCallback
+ * @param errorCallback
+ */
+
+
+
+
+kony.sync.insert_execute = function(tx, tbname, values, childRecordsArray ,error_callback, markForUpload, response) {
+
+	var callback_result;
+	sync.log.trace("Entering kony.sync.insert_execute");
+
+	//remove the binary values.
+	var blobMap = {};
+	if(!kony.sync.isNullOrUndefined(kony.sync.scopes.syncScopeBlobInfoMap[tbname]) &&
+		!kony.sync.isNullOrUndefined(kony.sync.scopes.syncScopeBlobInfoMap[tbname][kony.sync.columns])) {
+		var binaryColumns = kony.sync.scopes.syncScopeBlobInfoMap[tbname][kony.sync.columns];
+		for (var i = 0; i < binaryColumns.length; i++) {
+			if (!kony.sync.isNullOrUndefined(values[binaryColumns[i]]) && values[binaryColumns[i]].length > 0)
+				blobMap[binaryColumns[i]] = values[binaryColumns[i]];
+			delete values[binaryColumns[i]];
+			//keeping the blob ref as NULL.
+			values[kony.sync.binaryMetaColumnPrefix + binaryColumns[i]] = kony.sync.blobRefNotDefined;
+		}
+	}
+	sync.log.trace("removed blob values from the record "+JSON.stringify(values));
+
+	//check if pk_columns for autogenerated - false do not have not null values.
+	var tableinfo = kony.sync.getTableInfo(tbname);
+	if(kony.sync.isNullOrUndefined(tableinfo)) {
+		//invalid table name sent.
+		sync.log.error("invalid table name sent for insert operation "+tbname);
+		kony.sync.errorObject = kony.sync.getErrorTable(
+			kony.sync.errorCodeInvalidTableName,
+			kony.sync.getErrorMessage(kony.sync.errorCodeInvalidTableName, tbname)
+		);
+		return false;
+	}
+
+	if(!kony.sync.isNullOrUndefined(tableinfo.Pk_Columns)) {
+		for (var j = 0; j < tableinfo.Pk_Columns.length; j++) {
+			var pkKey = tableinfo.Pk_Columns[j];
+			if(tableinfo.ColumnsDic[pkKey].Autogenerated === "false" && kony.sync.isNullOrUndefined(values[pkKey])) {
+				//received null for a non auto-generated pk.
+				sync.log.error("received null for pk column "+pkKey);
+				kony.sync.errorObject =  kony.sync.getErrorTable(
+					kony.sync.errorCodeNullPrimaryKeyValue,
+					kony.sync.getErrorMessage(kony.sync.errorCodeNullPrimaryKeyValue, pkKey)
+				);
+				return false;
+			}
+		}
+	}
+	//CallBack_result contains AutoGenerated PK in hash ({id = value})
+	callback_result = kony.sync.insert(tx, tbname, values, error_callback, markForUpload);
+	if(response.hasOwnProperty(tbname)) {
+		//it is a child record. update the array.
+		response[tbname].push(callback_result);
+	} else {
+		response = callback_result;
+	}
+
+	if (callback_result === false || kony.sync.isNullOrUndefined(callback_result)) {
+		sync.log.error("error in inserting record into "+tbname);
+		return false;
+	} else {
+		sync.log.trace("inserted into "+tbname+" with result "+JSON.stringify(callback_result));
+		//if insert is successful create rows in blobstore manager for the binary columns.
+		if(Object.keys(blobMap).length > 0) {
+			var blobStoreIndices = kony.sync.blobstore_insert(tx, tbname, blobMap, error_callback);
+			sync.log.trace("inserted blobMap into the blobStoreManager. response is "+JSON.stringify(blobStoreIndices));
+			if(blobStoreIndices && Object.keys(blobStoreIndices).length > 0) {
+				//update the parent table with blob references.
+				var wcs = [];
+				for (var key in callback_result) {
+					var wc = {};
+					wc.key = key;
+					wc.value = callback_result[key];
+					wcs.push(wc);
+				}
+				var resultset = kony.sync.blobManager.updateParentWithBlobReference(tx, tbname, blobStoreIndices, wcs, error_callback);
+				sync.log.trace("updating the blob reference in the table " + tbname);
+				if (resultset === false || kony.sync.isNullOrUndefined(resultset)) {
+					sync.log.error("error in updating table " + tbname + " with blob references..");
+					return false;
+				}
+			} else{
+				sync.log.error("error in inserting blob data ");
+				return false;
+			}
+		}
+	}
+
+	//check for child records.
+	if(childRecordsArray.length > 0) {
+		sync.log.trace("There are child records... Inserting them");
+
+		for(var k = 0; k < childRecordsArray.length; k++) {
+			var childRecordObject = childRecordsArray[k];
+
+			//child records are json objects with childTable name as key.
+			for(var table in childRecordObject) {
+				if(!response.hasOwnProperty(table)) {
+					response[table] = [];
+				}
+				//child records are expected to be arary.
+				sync.log.trace("inserting child record in table "+table);
+				if(childRecordObject[table] instanceof Array) {
+					for (var childRecordsCount = 0; childRecordsCount < childRecordObject[table].length; childRecordsCount++) {
+
+						//before inserting child records, first remove the nested child records
+						var childRecordToBeInserted = childRecordObject[table][childRecordsCount];
+						var nestedChildRecords = kony.sync.getChildRecords(table, childRecordToBeInserted);
+						sync.log.trace("child records for "+table+" are "+JSON.stringify(nestedChildRecords));
+
+						//getting the relationship attributes
+						var parentRelationAttributes = kony.sync.getParentRelationshipAttributes(tbname, table);
+						sync.log.trace("parentRelationAttributes for "+tbname+" and "+table+" are "+JSON.stringify(parentRelationAttributes));
+						//adding the values from the generated primary keys.
+						if(!kony.sync.isNullOrUndefined(parentRelationAttributes)) {
+							for (var count in parentRelationAttributes) {
+								var relationAttribute = parentRelationAttributes[count];
+								//check if callback has mapping source attribute
+								if (callback_result.hasOwnProperty(relationAttribute[kony.sync.sourceAttribute]) && !kony.sync.isNullOrUndefined(callback_result[relationAttribute[kony.sync.sourceAttribute]])) {
+									childRecordToBeInserted[relationAttribute[kony.sync.targetAttribute]] = callback_result[relationAttribute[kony.sync.sourceAttribute]];
+								} else if (values.hasOwnProperty(relationAttribute[kony.sync.sourceAttribute]) && !kony.sync.isNullOrUndefined(values[relationAttribute[kony.sync.sourceAttribute]])) {
+									childRecordToBeInserted[relationAttribute[kony.sync.targetAttribute]] = values[relationAttribute[kony.sync.sourceAttribute]];
+								} else {
+									//no mapping source attribute found.
+									kony.sync.errorObject = kony.sync.getErrorTable(
+										kony.sync.errorCodeParentMappingAttributeNotFound,
+										kony.sync.getErrorMessage(kony.sync.errorCodeParentMappingAttributeNotFound, relationAttribute[kony.sync.sourceAttribute])
+									);
+									sync.log.error("no mapping source attribute found from values sent.." + tbname);
+									return false;
+								}
+							}
+						}
+						var childResponse = {};
+						var childRecordInsertResult = kony.sync.insert_execute(tx, table, childRecordToBeInserted, nestedChildRecords, error_callback, markForUpload, childResponse);
+						if (childRecordInsertResult === false || kony.sync.isNullOrUndefined(childRecordInsertResult)) {
+							sync.log.error("error in inserting record "+JSON.stringify(childRecordToBeInserted));
+							return false;
+						}
+						if(response.hasOwnProperty(table)) {
+							response[table].push(childRecordInsertResult);
+						}
+						sync.log.trace("after inserting record in "+table+" response is "+JSON.stringify(childRecordInsertResult));
+					}
+				} else {
+					kony.sync.errorObject = kony.sync.getErrorTable(
+						kony.sync.errorCodeChildObjectShouldBeArray,
+						kony.sync.getErrorMessage(kony.sync.errorCodeChildObjectShouldBeArray)
+					);
+					sync.log.error("improper format for sending child objects. ");
+					return false;
+				}
+			}
+		}
+	}
+	sync.log.trace("callback_result returning for table "+tbname+ " is "+JSON.stringify(callback_result));
+	return callback_result;
+};
+
+kony.sync.update_execute = function(tx, tbname, values, childRecordsArray, wc, isBatch, markForUpload, primaryKey , error_callback) {
+	var callback_result;
+	var blobMap = {};
+	if(!kony.sync.isNullOrUndefined(kony.sync.scopes.syncScopeBlobInfoMap[tbname]) &&
+		!kony.sync.isNullOrUndefined(kony.sync.scopes.syncScopeBlobInfoMap[tbname][kony.sync.columns])) {
+		var binaryColumns = kony.sync.scopes.syncScopeBlobInfoMap[tbname][kony.sync.columns];
+		for (var i = 0; i < binaryColumns.length; i++) {
+			if(!kony.sync.isNullOrUndefined(values[binaryColumns[i]]) && values[binaryColumns[i]].length > 0)
+				blobMap[binaryColumns[i]] = values[binaryColumns[i]];
+			delete values[binaryColumns[i]];
+		}
+	}
+	if (isBatch === true) {
+		callback_result = kony.sync.updateBatch(tx, tbname, values, wc, markForUpload, primaryKey);
+	} else {
+		callback_result = kony.sync.update(tx, tbname, values, wc, markForUpload);
+	}
+
+	if(callback_result===false || kony.sync.isNullOrUndefined(callback_result)){
+		return false;
+	} else {
+		if(Object.keys(blobMap).length > 0){
+			var blobStoreIndices = kony.sync.blobstore_update(tx, tbname, blobMap, wc, isBatch, error_callback);
+			if(blobStoreIndices && Object.keys(blobStoreIndices).length > 0) {
+				var results = kony.sync.blobManager.updateParentWithBlobReference(tx, tbname, blobStoreIndices, wc, error_callback);
+				if (results === false || results === null) {
+					sync.log.error("error in updating parent table with blob reference..");
+					return false;
+				}
+			} else{
+				sync.log.error("Null returned from blobstore_update.");
+				return false;
+			}
+		}
+
+		//check for the child records.
+		if(childRecordsArray.length > 0) {
+			for(var k = 0; k < childRecordsArray.length; k++){
+				var childRecordObject = childRecordsArray[k];
+				for(var table in childRecordObject) {
+					sync.log.trace("updating child record in table "+table);
+					if(childRecordObject[table] instanceof Array) {
+						for (var childRecordsCount = 0; childRecordsCount < childRecordObject[table].length; childRecordsCount++) {
+							//first remove nested childrecords from the values table.
+							var childRecordToBeUpdated = childRecordObject[table][childRecordsCount];
+							var nestedChildRecords = kony.sync.getChildRecords(table, childRecordToBeUpdated);
+							sync.log.trace("child records for "+table+" are "+JSON.stringify(nestedChildRecords));
+
+							//get pkTable from the childRecord.
+							var pkTable = kony.sync.getPkTableFromJSON(childRecordToBeUpdated, table);
+							sync.log.trace("pkTable for the table "+table+" is "+JSON.stringify(pkTable));
+							if(pkTable && Object.keys(pkTable).length > 0) {
+								//create a whereclause from pkTable.
+								var whereClause = [];
+								for(var key in pkTable) {
+									if(!kony.sync.isNullOrUndefined(pkTable[key])) {
+										var child_wc = {};
+										child_wc.key = key;
+										child_wc.value = pkTable[key];
+										child_wc.comptype = "AND";
+										whereClause.push(child_wc);
+									} else {
+										//null send as pkValue. throw error
+										sync.log.error("received null for pk column "+pkTable[key]);
+										kony.sync.errorObject =  kony.sync.getErrorTable(
+											kony.sync.errorCodeNullPrimaryKeyValue,
+											kony.sync.getErrorMessage(kony.sync.errorCodeNullPrimaryKeyValue, pkTable[key])
+										);
+										return false;
+									}
+								}
+								if(whereClause.length > 0) {
+									var childRecordUpdateResult = kony.sync.update_execute(tx, table, childRecordToBeUpdated,
+										nestedChildRecords, whereClause, isBatch, markForUpload, primaryKey, error_callback);
+
+									if (childRecordUpdateResult === false || kony.sync.isNullOrUndefined(childRecordUpdateResult)) {
+										sync.log.error("error in updating record " + JSON.stringify(childRecordUpdateResult));
+										return false;
+									}
+									sync.log.trace("after updating record in "+table+" response is "+JSON.stringify(childRecordUpdateResult));
+								}
+							} else {
+								kony.sync.errorObject =  kony.sync.getErrorTable(
+									kony.sync.errorCodeInvalidPksGiven,
+									kony.sync.getErrorMessage(kony.sync.errorCodeInvalidPksGiven, table)
+								);
+								sync.log.error("invalid pks send for update of record in "+table);
+								return false;
+							}
+						}
+					} else {
+						sync.log.error("improper format for sending child objects. ");
+						kony.sync.errorObject = kony.sync.getErrorTable(
+							kony.sync.errorCodeChildObjectShouldBeArray,
+							kony.sync.getErrorMessage(kony.sync.errorCodeChildObjectShouldBeArray)
+						);
+						return false;
+					}
+				}
+			}
+		}
+	}
+	return callback_result;
+};
 
 kony.sync.single_insert_execute = function (dsname, tbname, values, success_callback, error_callback, markForUpload) {
 	sync.log.trace("Entering kony.sync.single_insert_execute-> main function");
 	var callback_result = [];
 	var dbname = dsname;
-	var isSuccess = true;
 
 	function single_transaction_success_callback() {
 		sync.log.trace("Entering kony.sync.single_insert_execute->single_transaction_success_callback");
-		if (isSuccess) {
+		if (callback_result) {
 			kony.sync.verifyAndCallClosure(success_callback, callback_result);
 		}
 	}
 
 	function single_transaction_failure_callback() {
 		sync.log.error("Entering kony.sync.single_insert_execute->single_transaction_failure_callback");
-		if (isSuccess) {
-			kony.sync.showTransactionError(error_callback);
-		}else{
-			sync.log.error("Entering kony.sync.single_insert_execute->single_transaction_failure_callback : ", kony.sync.errorObject);
-			kony.sync.verifyAndCallClosure(error_callback, kony.sync.errorObject);
-			kony.sync.errorObject = null;
-		}
+
+		sync.log.error("Entering kony.sync.single_insert_execute->single_transaction_failure_callback : ", kony.sync.errorObject);
+		kony.sync.verifyAndCallClosure(error_callback, kony.sync.errorObject);
+		kony.sync.errorObject = null;
+
 	}
 
 
 	function single_transaction_callback(tx) {
-		sync.log.trace("Entering kony.sync.single_insert_execute->single_transaction_callback");
-		//CallBack_result contains AutoGenerated PK in hash ({id = value})
-		var blobStoreIndices = kony.sync.blobstore_insert(tx, tbname, values, error_callback);
-		var konysyncBinaryColumn = null;
-		for(var column in blobStoreIndices) {
-			konysyncBinaryColumn = kony.sync.binaryMetaColumnPrefix + column;
-			delete values[column];
-			values[konysyncBinaryColumn] = blobStoreIndices[column];
+		//from the values table, remove the child table records if exists.
+		var childRecordsArray = kony.sync.getChildRecords(tbname, values);
+		var response = {};
+		callback_result = kony.sync.insert_execute(tx, tbname, values, childRecordsArray, error_callback, markForUpload, response);
+		if(kony.sync.isNullOrUndefined(callback_result) || callback_result === false) {
+			sync.log.error("single_insert_execute -> single_transaction_callback rolling back changes");
+			try {
+				kony.sync.rollbackTransaction(tx);
+			} catch(err) {
+				sync.log.error("single_insert_execute - error in rollbackTransaction ", err);
+			}
 		}
-		callback_result = kony.sync.insert(tx, tbname, values, error_callback, markForUpload);
-		if (callback_result === false) {
-			isSuccess = false;
-		}
+		sync.log.info("response from insert operation "+JSON.stringify(callback_result));
 	}
 
 	var connection = kony.sync.getConnectionOnly(dbname, dbname, error_callback);
@@ -10512,11 +12335,11 @@ kony.sync.single_insert_execute = function (dsname, tbname, values, success_call
 	}
 };
 
+
 kony.sync.single_update_execute = function (dsname, tbname, values, wc, success_callback, error_callback, isBatch, markForUpload, primaryKey) {
 	sync.log.trace("Entering kony.sync.single_update_execute ");
 	var callback_result = {};
 	var dbname = dsname;
-	var isError = false;
 
 	function single_transaction_success_callback() {
 		sync.log.trace("Entering kony.sync.single_update_execute->single_transaction_success_callback ");
@@ -10525,34 +12348,28 @@ kony.sync.single_update_execute = function (dsname, tbname, values, wc, success_
 
 	function single_transaction_error_callback() {
 		sync.log.error("Entering kony.sync.single_update_execute->single_transaction_error_callback");
-		if (!isError) {
-			kony.sync.showTransactionError(error_callback, "Single Update Execute");
-		}else{
-			sync.log.error("Entering kony.sync.single_update_execute->single_transaction_error_callback :", kony.sync.errorObject);
-			kony.sync.verifyAndCallClosure(error_callback, kony.sync.errorObject);
-			kony.sync.errorObject = null;
-		}
+
+		sync.log.error("Entering kony.sync.single_update_execute->single_transaction_error_callback :", kony.sync.errorObject);
+		kony.sync.verifyAndCallClosure(error_callback, kony.sync.errorObject);
+		kony.sync.errorObject = null;
 	}
 
 	function single_transaction_callback(tx){
 		sync.log.trace("Entering kony.sync.single_update_execute->single_transaction_callback");
-		var blobStoreIndices = kony.sync.blobstore_update(tx, tbname, values, wc, isBatch);
-		if(!kony.sync.isNullOrUndefined(blobStoreIndices)) {
-			var konysyncBinaryColumn;
-			for (var column in blobStoreIndices) {
-				konysyncBinaryColumn = kony.sync.binaryMetaColumnPrefix + column;
-				delete values[column];
-				values[konysyncBinaryColumn] = blobStoreIndices[column];
-			}
-			if (isBatch === true) {
-				callback_result = kony.sync.updateBatch(tx, tbname, values, wc, markForUpload, primaryKey);
-			} else {
-				callback_result = kony.sync.update(tx, tbname, values, wc, markForUpload);
+
+		//from the values table, remove the child table records if exists.
+		var childRecordsArray = kony.sync.getChildRecords(tbname, values);
+		//(tx, tbname, values,childRecordsArray, wc, isBatch, markForUpload, primaryKey , error_callback)
+		callback_result = kony.sync.update_execute(tx, tbname, values, childRecordsArray, wc, isBatch, markForUpload, primaryKey, error_callback);
+		if(kony.sync.isNullOrUndefined(callback_result) || callback_result === false) {
+			sync.log.error("single_update_execute -> single_transaction_callback rolling back changes");
+			try {
+				kony.sync.rollbackTransaction(tx);
+			} catch(err) {
+				sync.log.error("single_insert_execute - error in rollbackTransaction ", err);
 			}
 		}
-		if(callback_result===false){
-			isError = true;
-		}
+		sync.log.info("response from update operation "+JSON.stringify(callback_result));
 	}
 
 	var connection = kony.sync.getConnectionOnly(dbname, dbname, error_callback, "Single Update Execute");
@@ -10560,6 +12377,88 @@ kony.sync.single_update_execute = function (dsname, tbname, values, wc, success_
 		kony.sync.startTransaction(connection, single_transaction_callback, single_transaction_success_callback, single_transaction_error_callback, "Single Update Execute");
 	}
 };
+
+kony.sync.delete_execute = function(tx, tbname, wc, isBatch, isLocal, markForUpload, error_callback) {
+
+	//get records satisfying given where clause for tbname.
+	var query = kony.sync.qb_createQuery();
+	kony.sync.qb_select(query, null);
+	kony.sync.qb_from(query, tbname);
+	kony.sync.qb_where(query, wc);
+
+	var query_compile = kony.sync.qb_compile(query);
+	var sql = query_compile[0];
+	var params = query_compile[1];
+
+	var result_set = kony.sync.executeSql(tx, sql, params, error_callback);
+	if(result_set !== null && result_set!== false) {
+		//get child relationships for the tbname.
+		var relationships = kony.sync.getRelationshipsForTable(tbname);
+		sync.log.trace("delete_execute relationships for tbname "+tbname+" are "+JSON.stringify(relationships));
+		if (!kony.sync.isNullOrUndefined(relationships) && !kony.sync.isNullOrUndefined(relationships[kony.sync.oneToMany])) {
+			sync.log.trace("tbname "+tbname+" has oneToMany relationships");
+			var oneToManyRelationships = relationships[kony.sync.oneToMany];
+			for (var j = 0; j < oneToManyRelationships.length; j++) {
+				//get the target object and delete.
+				var relationshipTargetObject = oneToManyRelationships[j][kony.sync.targetObject];
+				sync.log.trace("target object on oneToMany relation for "+tbname+" is "+relationshipTargetObject);
+				//fetch the source-target mapping for the one-many relation.
+				var parentRelationAttributes = kony.sync.getParentRelationshipAttributes(tbname, relationshipTargetObject);
+				sync.log.trace("parentRelationAttributes for "+tbname+" and "+relationshipTargetObject+" are "+JSON.stringify(parentRelationAttributes));
+				//parse through the result_Set and create where clause for the childs to get deleted.
+				if(parentRelationAttributes) {
+					for (var k = 0; k < result_set.rows.length; k++) {
+						//creating a where clause to delete childs as well.
+						var whereClause = [];
+						for (var count in parentRelationAttributes) {
+							var relationAttribute = parentRelationAttributes[count];
+							var rowItem = kony.db.sqlResultsetRowItem(tx, result_set, k);
+							if (!kony.sync.isNullOrUndefined(rowItem[relationAttribute[kony.sync.sourceAttribute]])) {
+								var child_wc = {};
+								child_wc.key = relationAttribute[kony.sync.targetAttribute];
+								child_wc.value = rowItem[relationAttribute[kony.sync.sourceAttribute]];
+								whereClause.push(child_wc);
+							}
+						}
+						sync.log.trace("whereClause for deleting in tbname " + relationshipTargetObject + " is " + JSON.stringify(whereClause));
+						//delete the child first before deleting the parent.
+						if (whereClause.length > 0) {
+							var childRecordDeleteResult = kony.sync.delete_execute(tx, relationshipTargetObject, whereClause, isBatch, isLocal, markForUpload, error_callback);
+							if (childRecordDeleteResult === null || childRecordDeleteResult === false) {
+								return false;
+							}
+						} else {
+							//no child records to delete..
+							sync.log.trace("For table " + tbname + " no child records to delete...");
+						}
+					}
+				}
+			}
+		}
+
+		//delete the record once, childs are deleted.
+		var callback_result;
+		var isBlobDeleted = kony.sync.blobstore_delete(tx, tbname, wc, isBatch, function(err){
+			sync.log.error("kony.sync.delete_exeucte - error in deleting blob values for the table "+tbname);
+		});
+		sync.log.trace("kony.sync.delete_execute - result from blobstore_delete is "+isBlobDeleted);
+		if(isBlobDeleted) {
+			if (isBatch === true) {
+				callback_result = kony.sync.deleteBatch(tx, tbname, wc, isLocal, markForUpload, error_callback);
+			} else {
+				callback_result = kony.sync.remove(tx, tbname, wc, isLocal, markForUpload, error_callback);
+			}
+		}
+		if(callback_result===false){
+			sync.log.error("kony.sync.delete_execute - error in deletion of records in tbname "+tbname);
+			return false;
+		}
+		return callback_result;
+	}
+	sync.log.error("kony.sync.delete_execute - error in sql select operation on the table "+tbname);
+	return false;
+};
+
 
 kony.sync.single_delete_execute = function (dsname, tbname, wc, success_callback, error_callback, isBatch, isLocal, markForUpload) {
 	sync.log.trace("Entering kony.sync.single_delete_execute-> main function");
@@ -10574,28 +12473,25 @@ kony.sync.single_delete_execute = function (dsname, tbname, wc, success_callback
 
 	function single_transaction_callback(tx) {
 		sync.log.trace("Entering kony.sync.single_delete_execute->single_transaction_callback");
-		var isBlobDeleted = kony.sync.blobstore_delete(tx, tbname, wc, isBatch);
-		if(isBlobDeleted) {
-			if (isBatch === true) {
-				callback_result = kony.sync.deleteBatch(tx, tbname, wc, isLocal, markForUpload, error_callback);
-			} else {
-				callback_result = kony.sync.remove(tx, tbname, wc, isLocal, markForUpload, error_callback);
+		callback_result = kony.sync.delete_execute(tx, tbname, wc, isBatch, isLocal, markForUpload, error_callback);
+		if(kony.sync.isNullOrUndefined(callback_result) || callback_result === false) {
+			sync.log.error("single_delete_execute -> single_transaction_callback rolling back changes");
+			try {
+				kony.sync.rollbackTransaction(tx);
+			} catch(err) {
+				sync.log.error("single_insert_execute - error in rollbackTransaction ", err);
 			}
 		}
-		if(callback_result===false){
-			isError = true;
-		}
+		sync.log.info("response from delete operation "+JSON.stringify(callback_result));
+
 	}
 
 	function single_transaction_error_callback() {
 		sync.log.error("Entering kony.sync.single_delete_execute->single_transaction_error_callback");
-		if (!isError) {
-			kony.sync.showTransactionError(error_callback, "Single Update Execute");
-		}else{
-			sync.log.error("Entering kony.sync.single_delete_execute->single_transaction_error_callback :", kony.sync.errorObject);
-			kony.sync.verifyAndCallClosure(error_callback, kony.sync.errorObject);
-			kony.sync.errorObject = null;
-		}
+
+		sync.log.error("Entering kony.sync.single_delete_execute->single_transaction_error_callback :", kony.sync.errorObject);
+		kony.sync.verifyAndCallClosure(error_callback, kony.sync.errorObject);
+		kony.sync.errorObject = null;
 	}
 
 	var connection = kony.sync.getConnectionOnly(dbname, dbname, error_callback, "Single Delete Execute");
@@ -10603,6 +12499,7 @@ kony.sync.single_delete_execute = function (dsname, tbname, wc, success_callback
 		kony.sync.startTransaction(connection, single_transaction_callback, single_transaction_success_callback, single_transaction_error_callback, "Single Delete Execute");
 	}
 };
+
 
 kony.sync.massInsert = function (dsname, tbname, valuesArray, successCallback, errorCallback, markForUpload) {
 	sync.log.trace("Entering kony.sync.massInsert-> main function");
@@ -11124,69 +13021,102 @@ kony.sync.konySyncRollBackRow = function(tx, tbname, wcs, errorcallback) {
 	}
 };
 
+
 kony.sync.konysyncRollBackOriginal = function(tx, tbname, values, wcs, errorcallback) {
 	sync.log.trace("Entering kony.sync.konysyncRollBackOriginal");
-    var originalchangetype = values[kony.sync.originalTableChangeTypeColumn] + "";
-    if (kony.sync.isrowexists(tx, tbname, wcs)) {
-        if ((originalchangetype === kony.sync.insertColStatus)||(originalchangetype === kony.sync.insertColStatusDI)) {
-            //Delete inserted Row.
-            if(!kony.sync.removeEx(tx, tbname, wcs, null, errorcallback)){
-				return false;
+
+	var originalchangetype = values[kony.sync.originalTableChangeTypeColumn] + "";
+	//delete the blob reference if exists.
+	var isBlobDeleted = kony.sync.blobstore_delete(tx, tbname, wcs, false, function(err){
+		sync.log.error("kony.sync.konysyncRollBackOriginal - error in deleting blob values for the table "+tbname);
+	});
+	if (isBlobDeleted) {
+
+		//add NULL to blobref columns..
+		sync.log.trace("kony.sync.konysyncRollBackOriginal - adding NULL values to blob ref columns for table "+tbname);
+		if (!kony.sync.isNullOrUndefined(kony.sync.scopes.syncScopeBlobInfoMap[tbname]) && !kony.sync.isNullOrUndefined(kony.sync.scopes.syncScopeBlobInfoMap[tbname][kony.sync.columns])) {
+			var binaryColumns = kony.sync.scopes.syncScopeBlobInfoMap[tbname][kony.sync.columns];
+			sync.log.trace("binary columns for tbname " + tbname + " are " + JSON.stringify(binaryColumns));
+			for (var i = 0; i < binaryColumns.length; i++) {
+				values[kony.sync.binaryMetaColumnPrefix + binaryColumns[i]] = kony.sync.blobRefNotDefined;
 			}
-        } else if ((originalchangetype === kony.sync.updateColStatus)||(originalchangetype === kony.sync.updateColStatusDU)) {
-            //Revert to original values.
-            values[kony.sync.mainTableChangeTypeColumn] = "-1";
-            values[kony.sync.mainTableSyncVersionColumn] = values[kony.sync.originalTableSyncVersionColumn];
-            values[kony.sync.originalTableChangeTypeColumn] = null;
-            values[kony.sync.originalTableSyncVersionColumn] = null;
-            if(!kony.sync.updateEx(tx, tbname, values, wcs, errorcallback)){
-				return false;
+		}
+
+		if (kony.sync.isrowexists(tx, tbname, wcs)) {
+			sync.log.trace("kony.sync.konysyncRollBackOriginal isrowexists = true");
+			if ((originalchangetype === kony.sync.insertColStatus) || (originalchangetype === kony.sync.insertColStatusDI)) {
+				sync.log.trace("kony.sync.konysyncRollBackOriginal - original change type is insert for values ",values);
+				if (!kony.sync.removeEx(tx, tbname, wcs, null, errorcallback)) {
+					return false;
+				}
+			} else if ((originalchangetype === kony.sync.updateColStatus) || (originalchangetype === kony.sync.updateColStatusDU)) {
+				//Revert to original values.
+				sync.log.trace("kony.sync.konysyncRollBackOriginal - original change type is update for values ", values);
+				values[kony.sync.mainTableChangeTypeColumn] = "-1";
+				values[kony.sync.mainTableSyncVersionColumn] = values[kony.sync.originalTableSyncVersionColumn];
+				values[kony.sync.originalTableChangeTypeColumn] = null;
+				values[kony.sync.originalTableSyncVersionColumn] = null;
+				if (!kony.sync.updateEx(tx, tbname, values, wcs, errorcallback)) {
+					return false;
+				}
+
+			} else if ((originalchangetype === kony.sync.deleteColStatus) || (originalchangetype === kony.sync.deleteColStatusDD)) {
+				//delete the row which has been inserted/updated with old values.
+				sync.log.trace("kony.sync.konysyncRollBackOriginal - original change type is delete for values ",values);
+				if (!kony.sync.removeEx(tx, tbname, wcs, null, errorcallback)) {
+					return false;
+				}
+				//Insert the row which has been deleted with old values.
+				values[kony.sync.mainTableChangeTypeColumn] = "-1";
+				values[kony.sync.mainTableSyncVersionColumn] = values[kony.sync.originalTableSyncVersionColumn];
+				values[kony.sync.mainTableHashSumColumn] = values[kony.sync.originalTableHashSumColumn];
+				values[kony.sync.originalTableChangeTypeColumn] = null;
+				values[kony.sync.originalTableSyncVersionColumn] = null;
+
+				if (!kony.sync.insertEx(tx, tbname, values, wcs, errorcallback)) {
+					return false;
+				}
 			}
-        } else if ((originalchangetype === kony.sync.deleteColStatus)||(originalchangetype === kony.sync.deleteColStatusDD)) {
-            //delete the row which has been inserted/updated with old values.
-            if(!kony.sync.removeEx(tx, tbname, wcs, null, errorcallback)){
-				return false;
+		}
+		else {
+			/*if ((originalchangetype === kony.sync.insertColStatus)) {
+			 //Need not handle this case. Because inserted record has been deleted. So, it is already rollbacked.
+			 } else*/
+			sync.log.trace("kony.sync.konysyncRollBackOriginal - isrowexists false");
+			if ((originalchangetype === kony.sync.updateColStatus) || (originalchangetype === kony.sync.updateColStatusDU)) {
+				//Insert the row which has been updated and deleted with old values.
+				sync.log.trace("kony.sync.konysyncRollBackOriginal - original change type is update for values ",values);
+				values[kony.sync.mainTableChangeTypeColumn] = "-1";
+				values[kony.sync.mainTableSyncVersionColumn] = values[kony.sync.originalTableSyncVersionColumn];
+				values[kony.sync.originalTableChangeTypeColumn] = null;
+				values[kony.sync.originalTableSyncVersionColumn] = null;
+				//kony.sync.insertEx(tx, tbname, values);
+				if (!kony.sync.insertEx(tx, tbname, values, null, errorcallback)) {
+					return false;
+				}
+			} else if ((originalchangetype === kony.sync.deleteColStatus) || (originalchangetype === kony.sync.deleteColStatusDD)) {
+				//Insert the row which has been deleted with old values.
+				sync.log.trace("kony.sync.konysyncRollBackOriginal - original change type is delete for values ",values);
+				values[kony.sync.mainTableChangeTypeColumn] = "-1";
+				values[kony.sync.mainTableSyncVersionColumn] = values[kony.sync.originalTableSyncVersionColumn];
+				values[kony.sync.originalTableChangeTypeColumn] = null;
+				values[kony.sync.originalTableSyncVersionColumn] = null;
+				if (!kony.sync.insertEx(tx, tbname, values, null, errorcallback)) {
+					return false;
+				}
 			}
-            //Insert the row which has been deleted with old values.
-            values[kony.sync.mainTableChangeTypeColumn] = "-1";
-            values[kony.sync.mainTableSyncVersionColumn] = values[kony.sync.originalTableSyncVersionColumn];
-            values[kony.sync.mainTableHashSumColumn] = values[kony.sync.originalTableHashSumColumn];
-			values[kony.sync.originalTableChangeTypeColumn] = null;
-            values[kony.sync.originalTableSyncVersionColumn] = null;
-            if(!kony.sync.insertEx(tx, tbname, values, wcs, errorcallback)){
-				return false;
-			}
-        }
-    } else {
-        /*if ((originalchangetype === kony.sync.insertColStatus)) {
-            //Need not handle this case. Because inserted record has been deleted. So, it is already rollbacked.
-        } else*/
-		if((originalchangetype === kony.sync.updateColStatus)||(originalchangetype === kony.sync.updateColStatusDU)) {
-            //Insert the row which has been updated and deleted with old values.
-            values[kony.sync.mainTableChangeTypeColumn] = "-1";
-            values[kony.sync.mainTableSyncVersionColumn] = values[kony.sync.originalTableSyncVersionColumn];
-            values[kony.sync.originalTableChangeTypeColumn] = null;
-            values[kony.sync.originalTableSyncVersionColumn] = null;
-            //kony.sync.insertEx(tx, tbname, values);
-			if(!kony.sync.insertEx(tx, tbname, values, null, errorcallback)){
-				return false;
-			}
-        } else if ((originalchangetype === kony.sync.deleteColStatus)||(originalchangetype === kony.sync.deleteColStatusDD)) {
-            //Insert the row which has been deleted with old values.
-            values[kony.sync.mainTableChangeTypeColumn] = "-1";
-            values[kony.sync.mainTableSyncVersionColumn] = values[kony.sync.originalTableSyncVersionColumn];
-            values[kony.sync.originalTableChangeTypeColumn] = null;
-            values[kony.sync.originalTableSyncVersionColumn] = null;
-			if(!kony.sync.insertEx(tx, tbname, values, null, errorcallback)){
-				return false;
-			}
-        }
-    }
-    if(!kony.sync.konySyncRollBackDeleteRow(tx, tbname, wcs,errorcallback)){
+		}
+		if (!kony.sync.konySyncRollBackDeleteRow(tx, tbname, wcs, errorcallback)) {
+			return false;
+		}
+		return true;
+	} else {
+		sync.log.error("kony.sync.konysyncRollBackOriginal error in deleting blob data for table "+tbname);
 		return false;
 	}
-	return true;
-};
+}
+
+
 
 kony.sync.konySyncRollBackDeleteRow = function(tx, tbname, wcs,errorcallback) {
 	sync.log.trace("Entering kony.sync.konySyncRollBackDeleteRow");
@@ -11938,7 +13868,17 @@ kony.sync.callSchemaUpgradeService = function(schemaUpgradeCallback, scriptsRequ
 };
 
 kony.sync.getServerURL = function() {
+
 	sync.log.trace("Entering kony.sync.getServerURL ");
+	
+	if(!kony.sync.isNullOrUndefined(kony.sdk.getCurrentInstance()) &&
+			!kony.sync.isNullOrUndefined(kony.sdk.getCurrentInstance().sync) &&
+				!kony.sync.isNullOrUndefined(kony.sdk.getCurrentInstance().sync.url)) {
+		sync.log.trace("Fetching sync url from mbaas-sdk service docs instance");
+		return kony.sdk.getCurrentInstance().sync.url+"/";			
+	}
+		
+	
 	if (!kony.sync.isNullOrUndefined(kony.sync.currentSyncConfigParams.serverurl)) {
 		return kony.sync.currentSyncConfigParams.serverurl;
 	}
@@ -12103,15 +14043,33 @@ kony.sync.invokeServiceAsync = function(url, params, callback, context) {
 kony.sync.commonServiceParams = function(params) {
 	sync.log.trace("Entering kony.sync.commonServiceParams ");
 	var httpheaders = {};
-	if (kony.sync.isNullOrUndefined(kony.sync.currentSyncConfigParams[kony.sync.authTokenKey])) {
-		params.userid = kony.sync.currentSyncConfigParams.userid;
-		params.password = kony.sync.genHash(kony.sync.currentSyncConfigParams[kony.sync.passwordHashingAlgo], kony.sync.currentSyncConfigParams.password);
-		params.AppID = kony.sync.getAppId();
-	} else {
+	if(!kony.sync.isNullOrUndefined(kony.sdk.getCurrentInstance())
+		&& !kony.sync.isNullOrUndefined(kony.sdk.getCurrentInstance().currentClaimToken)) {
+		sync.log.trace("mbaas sdk instance is alive so adding current claims token");
 		if (!kony.sync.isMbaasEnabled) {
 			kony.sync.isMbaasEnabled = true;
 		}
-		httpheaders["X-Kony-Authorization"] = kony.sync.currentSyncConfigParams[kony.sync.authTokenKey];
+		httpheaders["X-Kony-Authorization"] = kony.sdk.getCurrentInstance().currentClaimToken;
+	}
+	else if (!kony.sync.isNullOrUndefined(kony.sync.currentSyncConfigParams)) {
+		if(kony.sync.isNullOrUndefined(kony.sync.currentSyncConfigParams[kony.sync.authTokenKey])) {
+			sync.log.trace("Neither Mbaas sdk instance and sync config auth token are not there, so adding userid, password and appid instead of token");
+			params.userid = kony.sync.currentSyncConfigParams.userid;
+			params.password = kony.sync.genHash(kony.sync.currentSyncConfigParams[kony.sync.passwordHashingAlgo], kony.sync.currentSyncConfigParams.password);
+			params.AppID = kony.sync.getAppId();
+		}
+		else {
+			if (!kony.sync.isMbaasEnabled) {
+				kony.sync.isMbaasEnabled = true;
+			}
+			if( !(kony.sync.isNullOrUndefined(kony.sync.currentSyncConfigParams.userid)) && 
+				!(kony.sync.isNullOrUndefined(kony.sync.currentSyncConfigParams.password)) ) {
+				params.userid = kony.sync.currentSyncConfigParams.userid;
+				params.password = kony.sync.genHash(kony.sync.currentSyncConfigParams[kony.sync.passwordHashingAlgo], kony.sync.currentSyncConfigParams.password);
+			}
+			params.AppID = kony.sync.getAppId();
+			httpheaders["X-Kony-Authorization"] = kony.sync.currentSyncConfigParams[kony.sync.authTokenKey];
+		}
 	}
 	if (!kony.sync.isNullOrUndefined(kony.sync.sessionMap[kony.sync.konySyncSessionID]) &&
 			!kony.sync.isNullOrUndefined(kony.sync.sessionMap[kony.sync.konySyncRequestNumber])) {
@@ -12133,11 +14091,21 @@ kony.sync.resetSessionVars = function() {
 	kony.sync.sessionMap = {};
 };
 
+
 kony.sync.getDownloadBinaryURL = function() {
-	sync.log.trace("Entering kony.sync.getDownloadURL ");
+	
+	sync.log.trace("Entering kony.sync.getDownloadBinaryURL ");
 	var server = kony.sync.getServerURL();
+	sync.log.trace("server url created -> kony.sync.getDownloadBinaryURL "+server);
 	return server + "downloadBinary";
 };
+
+kony.sync.getUploadBinaryURL = function() {
+	sync.log.trace("Entering kony.sync.getUploadBinaryURL ");
+	var server = kony.sync.getServerURL();
+	sync.log.trace("server url created -> kony.sync.getUploadBinaryURL "+server);
+	return server + "uploadBinary";	
+}
 //  **************** End konySyncServiceProvider.js*******************
 
 
@@ -12547,64 +14515,68 @@ if(typeof(sync) === "undefined") {
 	sync = {};
 }
 
+if(typeof(kony.sync.blobManager) === "undefined") {
+	kony.sync.blobManager = {};
+}
+
 kony.sync.syncUploadChanges = function(sname, dsname, onCompletion) {
 	sync.log.trace("Entering kony.sync.syncUploadChanges ");
-    kony.sync.onUploadCompletion = onCompletion;
-    kony.sync.resetuploadsessioglobals();
+	kony.sync.onUploadCompletion = onCompletion;
+	kony.sync.resetuploadsessioglobals();
 	kony.sync.objectLevelInfoMap = {};
 	kony.sync.OTAChangestobeDeleted = [];
 	kony.sync.uploadcontextMap = {};
-    kony.sync.getLastSyncUploadContext(sname, dsname, kony.sync.syncUploadChangesForBatch);
+	kony.sync.getLastSyncUploadContext(sname, dsname, kony.sync.syncUploadChangesForBatch);
 };
 
 kony.sync.createClone = function(obj) {
 	var copy;
-    if (null == obj || "object" != typeof obj) 
-    	return obj;
-	
+	if (null == obj || "object" != typeof obj)
+		return obj;
+
 	if (obj instanceof Array) {
-        copy = [];
-        for (var i = 0, len = obj.length; i < len; i++) {
-            copy[i] = kony.sync.createClone(obj[i]);
-        }
-        return copy;
-    }
-	
+		copy = [];
+		for (var i = 0, len = obj.length; i < len; i++) {
+			copy[i] = kony.sync.createClone(obj[i]);
+		}
+		return copy;
+	}
+
 	if (obj instanceof Object) {
-        copy = {};
-        for (var attr in obj) {
-            if (obj.hasOwnProperty(attr)) copy[attr] = kony.sync.createClone(obj[attr]);
-        }
-        return copy;
-    }
+		copy = {};
+		for (var attr in obj) {
+			if (obj.hasOwnProperty(attr)) copy[attr] = kony.sync.createClone(obj[attr]);
+		}
+		return copy;
+	}
 }
 
 kony.sync.syncUploadChangesForBatch = function(rowItem, previousUpload, limit) {
 	sync.log.trace("Entering kony.sync.syncUploadChangesForBatch");
 	var batchSize = kony.sync.getUploadBatchSize();
 	var offset = 0;
-    var serverblob1 = rowItem[kony.sync.metaTableUploadSyncTimeColumn];
+	var serverblob1 = rowItem[kony.sync.metaTableUploadSyncTimeColumn];
 	var lastSeqNo = rowItem[kony.sync.metaTableSyncOrderCloumn];
 	//previousUpload = "";//temporary -- to be removed while handling duplicate row issue
-    sync.log.info("Current Scope Server Time Stamp", serverblob1);
-    kony.sync.currentSyncReturnParams[kony.sync.lastSyncTimestamp] = serverblob1;
-    kony.sync.currentSyncReturnParams[kony.sync.uploadSequenceNumber] = kony.sync.currentSyncScopesState[kony.sync.currentScope.ScopeName];
-    var firstBatch = false;
+	sync.log.info("Current Scope Server Time Stamp", serverblob1);
+	kony.sync.currentSyncReturnParams[kony.sync.lastSyncTimestamp] = serverblob1;
+	kony.sync.currentSyncReturnParams[kony.sync.uploadSequenceNumber] = kony.sync.currentSyncScopesState[kony.sync.currentScope.ScopeName];
+	var firstBatch = false;
 	var lastBatch = false;
 	var isError = false;
 	var changeset = {
-        clientid: kony.sync.getDeviceID(),
-        SequenceNumber: kony.sync.currentSyncScopesState[kony.sync.currentScope.ScopeName],
-        serverblob: serverblob1,
-        scopeName: kony.sync.currentScope[kony.sync.scopeName],
-        uri: kony.sync.currentScope[kony.sync.scopeDataSource],
+		clientid: kony.sync.getDeviceID(),
+		SequenceNumber: kony.sync.currentSyncScopesState[kony.sync.currentScope.ScopeName],
+		serverblob: serverblob1,
+		scopeName: kony.sync.currentScope[kony.sync.scopeName],
+		uri: kony.sync.currentScope[kony.sync.scopeDataSource],
 		totalChanges: 0,
-        tables: []
-    };
-	
+		tables: []
+	};
+
 	function updateSyncOrderForDeferredRows(tx, limit) {
 		sync.log.trace("Entering kony.sync.updateSyncOrderForDeferredRows");
-		
+
 		if(kony.sync.isNullOrUndefined(kony.sync.currentScope.ScopeTables)){
 			return true;
 		}
@@ -12617,20 +14589,20 @@ kony.sync.syncUploadChangesForBatch = function(rowItem, previousUpload, limit) {
 			var settable = [];
 			settable[kony.sync.historyTableSyncVersionColumn] = kony.sync.currentSyncScopesState[kony.sync.currentScope.ScopeName];
 			var query = kony.sync.qb_createQuery();
-						kony.sync.qb_update(query, tablename+kony.sync.historyTableName);
-						kony.sync.qb_set(query, settable);
-						kony.sync.qb_where(query, [{key:kony.sync.historyTableReplaySequenceColumn,value:limit, optype: "LT"}]);
+			kony.sync.qb_update(query, tablename+kony.sync.historyTableName);
+			kony.sync.qb_set(query, settable);
+			kony.sync.qb_where(query, [{key:kony.sync.historyTableReplaySequenceColumn,value:limit, optype: "LT"}]);
 			var query_compile = kony.sync.qb_compile(query);
 			var sql = query_compile[0];
 			var params = query_compile[1];
 			if(kony.sync.executeSql(tx, sql, params)===false){
 				return false;
-			}			
+			}
 		}
 		return true;
 	}
 
-    function uploadAllTransaction(tx){
+	function uploadAllTransaction(tx){
 		sync.log.trace("Entering kony.sync.syncUploadChangesForBatch->uploadAllTransaction");
 		//get offset for the 1st batch
 		if(kony.sync.isNull(limit) || previousUpload === "*"){
@@ -12654,9 +14626,9 @@ kony.sync.syncUploadChangesForBatch = function(rowItem, previousUpload, limit) {
 		else{
 			offset = limit + 1;
 		}
-		
-		limit = offset + batchSize - 1; 
-		var uploadCache = {};		
+
+		limit = offset + batchSize - 1;
+		var uploadCache = {};
 		if(offset !== -1){
 			kony.sync.syncTotalBatchInserts = 0;
 			kony.sync.syncTotalBatchUpdates = 0;
@@ -12681,7 +14653,7 @@ kony.sync.syncUploadChangesForBatch = function(rowItem, previousUpload, limit) {
 			kony.sync.syncTotalUpdates += kony.sync.syncTotalBatchUpdates;
 			kony.sync.syncTotalDeletes += kony.sync.syncTotalBatchDeletes;
 		}
-		
+
 		if(limit >= lastSeqNo){
 			lastBatch = true;
 		}
@@ -12689,11 +14661,11 @@ kony.sync.syncUploadChangesForBatch = function(rowItem, previousUpload, limit) {
 			uploadCache[kony.sync.lastBatch] = lastBatch;
 			uploadCache[kony.sync.uploadChangesLimit] = kony.sync.uploadLimit;
 			cacheLastUploadRequest(tx, uploadCache);
-		}	
+		}
 
-    }
+	}
 
-    function cacheLastUploadRequest(tx, uploadCache) {
+	function cacheLastUploadRequest(tx, uploadCache) {
 		if(changeset.totalChanges > 0) {
 			var scopeName = kony.sync.currentScope[kony.sync.scopeName]
 			var lastRequest = kony.sync.checkForPendingUpload(tx, scopeName);
@@ -12701,30 +14673,30 @@ kony.sync.syncUploadChangesForBatch = function(rowItem, previousUpload, limit) {
 				return;
 			}
 			var contextInfo = {};
-	        contextInfo[kony.sync.metaTableScopeColumn] = scopeName;
-	        contextInfo[kony.sync.pendingUploadTableInsertCount] = kony.sync.syncTotalInserts;
-	        contextInfo[kony.sync.pendingUploadTableUpdateCount] = kony.sync.syncTotalUpdates;
-	        contextInfo[kony.sync.pendingUploadTableDeleteCount] = kony.sync.syncTotalDeletes;
-	        contextInfo[kony.sync.pendingUploadTableBatchInsertCount] = kony.sync.syncTotalBatchInserts;
-	        contextInfo[kony.sync.pendingUploadTableBatchUpdateCount] = kony.sync.syncTotalBatchUpdates;
-	        contextInfo[kony.sync.pendingUploadTableBatchDeleteCount] = kony.sync.syncTotalBatchDeletes;
-	        contextInfo[kony.sync.pendingUploadTableObjectLevelInfo] = JSON.stringify(kony.sync.objectLevelInfoMap);
-	        contextInfo[kony.sync.pendingUploadTableUploadRequest] = JSON.stringify(uploadCache);
+			contextInfo[kony.sync.metaTableScopeColumn] = scopeName;
+			contextInfo[kony.sync.pendingUploadTableInsertCount] = kony.sync.syncTotalInserts;
+			contextInfo[kony.sync.pendingUploadTableUpdateCount] = kony.sync.syncTotalUpdates;
+			contextInfo[kony.sync.pendingUploadTableDeleteCount] = kony.sync.syncTotalDeletes;
+			contextInfo[kony.sync.pendingUploadTableBatchInsertCount] = kony.sync.syncTotalBatchInserts;
+			contextInfo[kony.sync.pendingUploadTableBatchUpdateCount] = kony.sync.syncTotalBatchUpdates;
+			contextInfo[kony.sync.pendingUploadTableBatchDeleteCount] = kony.sync.syncTotalBatchDeletes;
+			contextInfo[kony.sync.pendingUploadTableObjectLevelInfo] = JSON.stringify(kony.sync.objectLevelInfoMap);
+			contextInfo[kony.sync.pendingUploadTableUploadRequest] = JSON.stringify(uploadCache);
 			contextInfo[kony.sync.pendingUploadTableUploadLimit] = kony.sync.uploadLimit;
-	        var query = kony.sync.qb_createQuery();
-	        kony.sync.qb_insert(query, kony.sync.pendingUploadTableName);
-	        kony.sync.qb_set(query, contextInfo);
-	        var query_compile = kony.sync.qb_compile(query);
-	        var sql = query_compile[0];
-	        var params = query_compile[1];
-	        var resultSet = kony.sync.executeSql(tx, sql, params);
-	        if (resultSet === false) {
-	            isError = true;
-	        }
-        }    	
-    }    
+			var query = kony.sync.qb_createQuery();
+			kony.sync.qb_insert(query, kony.sync.pendingUploadTableName);
+			kony.sync.qb_set(query, contextInfo);
+			var query_compile = kony.sync.qb_compile(query);
+			var sql = query_compile[0];
+			var params = query_compile[1];
+			var resultSet = kony.sync.executeSql(tx, sql, params);
+			if (resultSet === false) {
+				isError = true;
+			}
+		}
+	}
 
-    function uploadTransactionSuccess(){
+	function uploadTransactionSuccess(){
 		sync.log.trace("Entering kony.sync.syncUploadChangesForBatch->uploadTransactionSuccess");
 		if(changeset.totalChanges > 0 || previousUpload !== ""){
 			if(firstBatch){
@@ -12763,43 +14735,44 @@ kony.sync.syncUploadChangesForBatch = function(rowItem, previousUpload, limit) {
 			kony.sync.errorObject = null;
 		}
 	}
-    function uploadAllTransactionSuccess(otaServerChanges, oldJson) {
-        sync.log.trace("Entering kony.sync.syncUploadChangesForBatch->uploadAllTransactionSuccess");
-        sync.log.info("Upload response:", otaServerChanges);
-        if (!kony.sync.isNullOrUndefined(otaServerChanges.opstatus) && otaServerChanges.opstatus !== 0){
+	function uploadAllTransactionSuccess(otaServerChanges, oldJson) {
+		sync.log.trace("Entering kony.sync.syncUploadChangesForBatch->uploadAllTransactionSuccess");
+		sync.log.info("Upload response:", otaServerChanges);
+		if (!kony.sync.isNullOrUndefined(otaServerChanges.opstatus) && otaServerChanges.opstatus !== 0){
 			if (!kony.sync.isNullOrUndefined(otaServerChanges.d)) {
 				kony.sync.deleteLastUploadRequestWithNewTransaction(deleteLastUploadRequestCallback);
 			} else {
 				addLastUploadRequestCallback();
 			}
-            return;
-        }
+			return;
+		}
 		else if(kony.sync.isNullOrUndefined(otaServerChanges.d)){
-			kony.sync.onUploadCompletion(true, kony.sync.getServerError(otaServerChanges));
+			kony.sync.onUploadCompletion(true, kony.sync.getServerError(otaServerChanges.d));
 			return;
 		}
 		function addLastUploadRequestCallback(){
 			sync.log.trace("Entering kony.sync.syncUploadChangesForBatch->addLastUploadRequestCallback");
-			kony.sync.onUploadCompletion(true, kony.sync.getServerError(otaServerChanges));
+			kony.sync.onUploadCompletion(true, kony.sync.getServerError(otaServerChanges.d));
 		}
-        if (otaServerChanges.d.error === "false"){
+		if (otaServerChanges.d.error === "false"){
 			if(!kony.sync.isNullOrUndefined(otaServerChanges.d.__sync) && !kony.sync.isNullOrUndefined(otaServerChanges.d.__sync.serverblob)) {
 				rowItem[kony.sync.metaTableUploadSyncTimeColumn] = otaServerChanges.d.__sync.serverblob;
-			}
-			kony.sync.currentSyncReturnParams[kony.sync.serverDetails] = {};
-			kony.sync.currentSyncReturnParams[kony.sync.serverDetails][kony.sync.hostName] = kony.sync.getServerDetailsHostName(otaServerChanges);
-			kony.sync.currentSyncReturnParams[kony.sync.serverDetails][kony.sync.ipAddress] = kony.sync.getServerDetailsIpAddress(otaServerChanges);
-			kony.sync.clearSyncOrder(kony.sync.currentScope[kony.sync.scopeDataSource], limit, rowItem[kony.sync.metaTableUploadSyncTimeColumn], true, clearSyncOrderCallback);
-			
-        } else {
+				kony.sync.currentSyncReturnParams[kony.sync.serverDetails] = {};
+				kony.sync.currentSyncReturnParams[kony.sync.serverDetails][kony.sync.hostName] = kony.sync.getServerDetailsHostName(otaServerChanges);
+				kony.sync.currentSyncReturnParams[kony.sync.serverDetails][kony.sync.ipAddress] = kony.sync.getServerDetailsIpAddress(otaServerChanges);
+				kony.sync.clearSyncOrder(kony.sync.currentScope[kony.sync.scopeDataSource], limit, rowItem[kony.sync.metaTableUploadSyncTimeColumn], true, clearSyncOrderCallback);
+			} else {
+				addLastUploadRequestCallback();
+			}  
+		}else {
 			kony.sync.deleteLastUploadRequestWithNewTransaction(deleteLastUploadRequestCallback);
-            return;
-        }
-		
-		function deleteLastUploadRequestCallback(){
-			kony.sync.onUploadCompletion(true,kony.sync.getServerError(otaServerChanges.d)); 
+			return;
 		}
-		
+
+		function deleteLastUploadRequestCallback(){
+			kony.sync.onUploadCompletion(true,kony.sync.getServerError(otaServerChanges.d));
+		}
+
 		function clearSyncOrderCallback(){
 			sync.log.trace("Entering kony.sync.syncUploadChangesForBatch->clearSyncOrderCallback");
 			if (kony.sync.currentScope[kony.sync.syncStrategy] !== kony.sync.syncStrategy_OTA) {
@@ -12808,29 +14781,29 @@ kony.sync.syncUploadChangesForBatch = function(rowItem, previousUpload, limit) {
 				kony.sync.setOTAUploadResponse(otaServerChanges, setSeqNoWrapper);
 			}
 		}
-				
-		function setSeqNoWrapper(){			
+
+		function setSeqNoWrapper(){
 			sync.log.trace("Entering kony.sync.syncUploadChangesForBatch->setSeqNoWrapper");
 			kony.sync.currentSyncScopesState[kony.sync.currentScope.ScopeName] = kony.sync.currentSyncScopesState[kony.sync.currentScope.ScopeName] + 1;
 			kony.sync.setSeqnumber(kony.sync.currentScope.ScopeName, kony.sync.currentScope[kony.sync.scopeDataSource], kony.sync.currentSyncScopesState[kony.sync.currentScope.ScopeName], setSeqNoCallback);
 		}
-		
+
 		function setSeqNoCallback(){
 			sync.log.trace("Entering kony.sync.syncUploadChangesForBatch->setSeqNoCallback");
 			kony.sync.uploadcontextMap[kony.sync.numberOfRowsUploaded] = kony.sync.syncTotalInserts + kony.sync.syncTotalUpdates + kony.sync.syncTotalDeletes;
 			kony.sync.uploadcontextMap[kony.sync.numberOfRowsInserted] = kony.sync.syncTotalInserts;
 			kony.sync.uploadcontextMap[kony.sync.numberOfRowsUpdated] = kony.sync.syncTotalUpdates;
 			kony.sync.uploadcontextMap[kony.sync.numberOfRowsDeleted] = kony.sync.syncTotalDeletes;
-			
+
 			var uploadBatchContextMap = {};
 			uploadBatchContextMap[kony.sync.numberOfRowsUploaded] = kony.sync.syncTotalBatchInserts + kony.sync.syncTotalBatchUpdates + kony.sync.syncTotalBatchDeletes;
 			uploadBatchContextMap[kony.sync.numberOfRowsInserted] = kony.sync.syncTotalBatchInserts;
 			uploadBatchContextMap[kony.sync.numberOfRowsUpdated] = kony.sync.syncTotalBatchUpdates;
-			uploadBatchContextMap[kony.sync.numberOfRowsDeleted] = kony.sync.syncTotalBatchDeletes; 
+			uploadBatchContextMap[kony.sync.numberOfRowsDeleted] = kony.sync.syncTotalBatchDeletes;
 			uploadBatchContextMap[kony.sync.serverDetails] = {};
 			uploadBatchContextMap[kony.sync.serverDetails][kony.sync.hostName] = kony.sync.getServerDetailsHostName(otaServerChanges);
 			uploadBatchContextMap[kony.sync.serverDetails][kony.sync.ipAddress] = kony.sync.getServerDetailsIpAddress(otaServerChanges);
-			
+
 			if (kony.sync.currentScope[kony.sync.syncStrategy] === kony.sync.syncStrategy_OTA) {
 				kony.sync.uploadcontextMap[kony.sync.objectLevelInfo] = kony.sync.objectLevelInfoMap;
 				kony.sync.uploadcontextMap[kony.sync.numberOfRowsAcknowledged] = kony.sync.serverInsertAckCount + kony.sync.serverUpdateAckCount + kony.sync.serverDeleteAckCount;
@@ -12854,12 +14827,12 @@ kony.sync.syncUploadChangesForBatch = function(rowItem, previousUpload, limit) {
 			batchSize = null;
 			offset = null;
 			serverblob1 = null;
-			
+
 			//call upload batching recursively
 			kony.sync.syncUploadChangesForBatch(rowItem, previousUpload!==""?"*":"", limit);
 		}
 	}
-    if(previousUpload === "" || previousUpload === "*"){
+	if(previousUpload === "" || previousUpload === "*"){
 		var dbname = kony.sync.currentScope[kony.sync.scopeDataSource];
 		var connection = kony.sync.getConnectionOnly(dbname, dbname, kony.sync.syncUploadFailed);
 		if(connection!==null){
@@ -12900,9 +14873,9 @@ kony.sync.setOTAUploadResponse = function (serverChanges, callback) {
 	function setOTAUploadResponseTransaction(tx) {
 		sync.log.trace("Entering kony.sync.setOTAUploadResponse->setOTAUploadResponseTransaction");
 		isError = kony.sync.applyChanges(tx, kony.sync.currentScope, serverChanges, kony.sync.gPolicy);
-    }
+	}
 
-    function setOTAUploadResponseTransactionSuccess() {
+	function setOTAUploadResponseTransactionSuccess() {
 		sync.log.trace("Entering kony.sync.setOTAUploadResponse->setOTAUploadResponseTransactionSuccess");
 		callback();
 	}
@@ -12915,17 +14888,17 @@ kony.sync.setOTAUploadResponse = function (serverChanges, callback) {
 			kony.sync.errorObject = null;
 		}
 	}
-    var dbname = kony.sync.currentScope[kony.sync.scopeDataSource];
-    var connection = kony.sync.getConnectionOnly(dbname, dbname, kony.sync.syncUploadFailed);
-    if(connection!==null){
+	var dbname = kony.sync.currentScope[kony.sync.scopeDataSource];
+	var connection = kony.sync.getConnectionOnly(dbname, dbname, kony.sync.syncUploadFailed);
+	if(connection!==null){
 		kony.db.transaction(connection, setOTAUploadResponseTransaction, setOTAUploadResponseTransactionFailure, setOTAUploadResponseTransactionSuccess);
 	}
 };
 
 kony.sync.syncUploadFailed = function(connection) {
 	sync.log.trace("Entering kony.sync.syncUploadFailed");
-    kony.sync.onUploadCompletion(true,JSON.stringify(connection));
-    sync.log.error("Upload Failed",connection);
+	kony.sync.onUploadCompletion(true,JSON.stringify(connection));
+	sync.log.error("Upload Failed",connection);
 };
 
 
@@ -12939,10 +14912,10 @@ kony.sync.getSmallestSequenceNumber = function(tx){
 	for (var i = 0; i < kony.sync.currentScope.ScopeTables.length; i++){
 		var syncTable = kony.sync.currentScope.ScopeTables[i];
 		//not using query builder to speedup sync time
-		var sql = "select min(" + kony.sync.historyTableReplaySequenceColumn + ") from " + 
-				syncTable.Name + kony.sync.historyTableName + " where " + 
-				kony.sync.historyTableChangeTypeColumn + " NOT LIKE '9%' AND " +
-				kony.sync.historyTableSyncVersionColumn + " = " + kony.sync.currentSyncScopesState[kony.sync.currentScope.ScopeName];
+		var sql = "select min(" + kony.sync.historyTableReplaySequenceColumn + ") from " +
+			syncTable.Name + kony.sync.historyTableName + " where " +
+			kony.sync.historyTableChangeTypeColumn + " NOT LIKE '9%' AND " +
+			kony.sync.historyTableSyncVersionColumn + " = " + kony.sync.currentSyncScopesState[kony.sync.currentScope.ScopeName];
 		var resultset = kony.sync.executeSql(tx, sql, null);
 		if(resultset === false){
 			return false; //error occurred while executing query
@@ -12951,7 +14924,7 @@ kony.sync.getSmallestSequenceNumber = function(tx){
 		var seqNoFromTable = kony.sync.tonumber(rowItem["min(" + kony.sync.historyTableReplaySequenceColumn + ")"]);
 		seqNo = (seqNo === -1 || seqNoFromTable < seqNo) && seqNoFromTable !== null ? seqNoFromTable : seqNo;
 	}
-	return seqNo;	
+	return seqNo;
 };
 
 kony.sync.getBatchChanges = function(tx, scope, offset, limit, changeset, lastSeqNo, batchSize) {
@@ -12960,16 +14933,20 @@ kony.sync.getBatchChanges = function(tx, scope, offset, limit, changeset, lastSe
 	var continueGettingChanges = true;
 	kony.sync.uploadLimit = 0;
 	var tempUploadLimit;
+	var tableDictionary = {};//dictionary to get index of a table in changeset
+	var tableDictionarySize = 0;
+	var replaySequenceDictionary = [];
+	var dummyReplaySequenceNumber = -1 * batchSize;
 	do{
 		for(var i = 0; !kony.sync.isNull(kony.sync.currentScope.ScopeTables) && i < kony.sync.currentScope.ScopeTables.length; i++){
 			var syncTable = kony.sync.currentScope.ScopeTables[i];
-			if(kony.sync.isNullOrUndefined(kony.sync.objectLevelInfoMap[syncTable.Name])){ 
+			if(kony.sync.isNullOrUndefined(kony.sync.objectLevelInfoMap[syncTable.Name])){
 				kony.sync.objectLevelInfoMap[syncTable.Name] = {};
 				kony.sync.objectLevelInfoMap[syncTable.Name][kony.sync.numberOfRowsUploaded] = 0;
 				kony.sync.objectLevelInfoMap[syncTable.Name][kony.sync.numberOfRowsInserted] = 0;
 				kony.sync.objectLevelInfoMap[syncTable.Name][kony.sync.numberOfRowsUpdated] = 0;
 				kony.sync.objectLevelInfoMap[syncTable.Name][kony.sync.numberOfRowsDeleted] = 0;
-				
+
 				if ((kony.sync.currentScope[kony.sync.syncStrategy] === kony.sync.syncStrategy_OTA)) {
 					kony.sync.objectLevelInfoMap[syncTable.Name][kony.sync.numberOfRowsInsertedAck] = 0;
 					kony.sync.objectLevelInfoMap[syncTable.Name][kony.sync.numberOfRowsUpdatedAck]= 0;
@@ -12977,9 +14954,12 @@ kony.sync.getBatchChanges = function(tx, scope, offset, limit, changeset, lastSe
 					kony.sync.objectLevelInfoMap[syncTable.Name][kony.sync.numberOfRowsAcknowledged] = 0;
 					kony.sync.objectLevelInfoMap[syncTable.Name][kony.sync.numberOfRowsFailedtoUpload] = 0;
 				}
-				
-			}	
-		
+
+			}
+			if(kony.sync.currentScope.isHierarchical === true){
+				tableDictionary[syncTable.Name] = i;
+				tableDictionarySize++;
+			}
 			tc = null;
 			if(kony.sync.isNullOrUndefined(changeset.tables[i])) {
 				tc = {
@@ -13002,24 +14982,25 @@ kony.sync.getBatchChanges = function(tx, scope, offset, limit, changeset, lastSe
 			kony.table.insert(fields, kony.sync.historyTableReplaySequenceColumn);
 			kony.table.insert(fields, kony.sync.historyTableSyncVersionColumn);
 			kony.table.insert(fields, kony.sync.historyTableHashSumColumn);
-			
+
 			//not using query builder to speedup sync time
-			var sql = "select * from " + syncTable.Name + kony.sync.historyTableName + " where " + 
-					kony.sync.historyTableChangeTypeColumn + " NOT LIKE '9%' AND " +
-					kony.sync.historyTableSyncVersionColumn + " = " + kony.sync.currentSyncScopesState[kony.sync.currentScope.ScopeName] +
-					" AND " + kony.sync.historyTableReplaySequenceColumn + " between " + offset + " AND " + limit;
+			var sql = "select * from " + syncTable.Name + kony.sync.historyTableName + " where " +
+				kony.sync.historyTableChangeTypeColumn + " NOT LIKE '9%' AND " +
+				kony.sync.historyTableSyncVersionColumn + " = " + kony.sync.currentSyncScopesState[kony.sync.currentScope.ScopeName] +
+				" AND " + kony.sync.historyTableReplaySequenceColumn + " between " + offset + " AND " + limit;
 
 			var resultset = kony.sync.executeSql(tx, sql, null);
 			if(resultset===false){
 				return false;
 			}
 			prepareChangeSet(tx, resultset);
+
 			sync.log.info("changes for " + syncTable.Name + ":", changeset.tables[i].changes);
-			
-			sql = "select max(" + kony.sync.historyTableReplaySequenceColumn + ") from " + syncTable.Name + kony.sync.historyTableName + " where " + 
-					kony.sync.historyTableChangeTypeColumn + " NOT LIKE '9%' AND " +
-					kony.sync.historyTableSyncVersionColumn + " = " + kony.sync.currentSyncScopesState[kony.sync.currentScope.ScopeName] +
-					" AND " + kony.sync.historyTableReplaySequenceColumn + " between " + offset + " AND " + limit;
+
+			sql = "select max(" + kony.sync.historyTableReplaySequenceColumn + ") from " + syncTable.Name + kony.sync.historyTableName + " where " +
+				kony.sync.historyTableChangeTypeColumn + " NOT LIKE '9%' AND " +
+				kony.sync.historyTableSyncVersionColumn + " = " + kony.sync.currentSyncScopesState[kony.sync.currentScope.ScopeName] +
+				" AND " + kony.sync.historyTableReplaySequenceColumn + " between " + offset + " AND " + limit;
 
 			resultset = kony.sync.executeSql(tx, sql, null);
 			if(resultset===false){
@@ -13033,15 +15014,454 @@ kony.sync.getBatchChanges = function(tx, scope, offset, limit, changeset, lastSe
 				break; //got all changes
 			}
 		}
+
+
 		if(changeset.totalChanges < batchSize && limit < lastSeqNo){
 			offset = limit + 1;
 			limit += batchSize - changeset.totalChanges;
 		}
 		else{
+			if(kony.sync.currentScope.isHierarchical === true){
+
+				function createDummyChangeSet(parentTableName,row) {
+					sync.log.trace("Creating Dummy ChangeSet Record");
+					var changesetIndex = tableDictionary[parentTableName];
+					tc = null;
+					//getting the actual table
+					if(kony.sync.isNullOrUndefined(changeset.tables[changesetIndex])) {
+						tc = {
+							tableName: parentTableName,
+							changes: []
+						};
+						changeset.tables[changesetIndex] = tc;
+					} else {
+						tc = changeset.tables[changesetIndex];
+					}
+
+					var changeType = row[kony.sync.historyTableChangeTypeColumn] + "";
+					var rc = {
+						fields: [],
+						values: []
+					};
+
+					syncTable = kony.sync.currentScope.syncTableDic[parentTableName];
+					if(!kony.sync.isNullOrUndefined(syncTable.Columns)){
+						for (var x = 0; x < syncTable.Columns.length; x++) {
+							var column = syncTable.Columns[x];
+							if(kony.sync.isNullOrUndefined(row[column.Name])){
+								kony.table.insert(rc.fields, column.Name);
+								kony.table.insert(rc.values, "null");
+							}
+						}
+					}
+
+					row[kony.sync.mainTableChangeTypeColumn] = 1;
+					row[kony.sync.historyTableChangeTimeColumn] = null;
+					row[kony.sync.mainTableHashSumColumn] = null;
+					for(var key in row){
+						if (key !== kony.sync.syncStatusColumn){
+							kony.table.insert(rc.fields, key);
+							kony.table.insert(rc.values, row[key]);
+						}
+					}
+
+					rc.changeType = "update";
+					//creating metainfo if it doesnot exist
+					if(kony.sync.isNullOrUndefined(kony.sync.objectLevelInfoMap[parentTableName])){
+						kony.sync.objectLevelInfoMap[parentTableName] = {};
+						kony.sync.objectLevelInfoMap[parentTableName][kony.sync.numberOfRowsUploaded] = 0;
+						kony.sync.objectLevelInfoMap[parentTableName][kony.sync.numberOfRowsInserted] = 0;
+						kony.sync.objectLevelInfoMap[parentTableName][kony.sync.numberOfRowsUpdated] = 0;
+						kony.sync.objectLevelInfoMap[parentTableName][kony.sync.numberOfRowsDeleted] = 0;
+
+						if ((kony.sync.currentScope[kony.sync.syncStrategy] === kony.sync.syncStrategy_OTA)) {
+							kony.sync.objectLevelInfoMap[parentTableName][kony.sync.numberOfRowsInsertedAck] = 0;
+							kony.sync.objectLevelInfoMap[parentTableName][kony.sync.numberOfRowsUpdatedAck]= 0;
+							kony.sync.objectLevelInfoMap[parentTableName][kony.sync.numberOfRowsDeletedAck] = 0;
+							kony.sync.objectLevelInfoMap[parentTableName][kony.sync.numberOfRowsAcknowledged] = 0;
+							kony.sync.objectLevelInfoMap[parentTableName][kony.sync.numberOfRowsFailedtoUpload] = 0;
+						}
+
+					}
+					kony.sync.objectLevelInfoMap[parentTableName][kony.sync.numberOfRowsUpdated]=kony.sync.objectLevelInfoMap[parentTableName][kony.sync.numberOfRowsUpdated]+1;
+					kony.sync.syncTotalBatchUpdates += 1;
+					sync.log.info("adding the dummy record metadata to batchchangeset metadata");
+
+					kony.table.insert(rc.fields, kony.sync.historyTableReplaySequenceColumn);
+					kony.table.insert(rc.values, dummyReplaySequenceNumber);
+
+					//giving dummy replay sequence number for the record and sending it as update
+					dummyReplaySequenceNumber++;
+					sync.log.info("updated dummy replay sequence number "+dummyReplaySequenceNumber);
+
+					//finally adding the record to the changeset
+					sync.log.info("inserted the record into the change set "+JSON.stringify(rc));
+					kony.table.insert(tc.changes, rc);
+
+					sync.log.info("changeset of table "+parentTableName + " "+JSON.stringify(tc.changes));
+					//return the index of newly inserted record
+					return (tc.changes.length - 1);
+				}
+
+				function isEmptyObject(object){
+					for(var key in object){
+						return false;
+					}
+					return true;
+				}
+
+				function fetchParentFromMainTable(parentTableName,childRecord,childTableName){
+					sync.log.trace("entering into fetch parent from main table");
+					wherecondition = [];
+					//getting the parents of the child table
+					parentRelationshipMap = kony.sync.currentScope.syncTableDic[childTableName+kony.sync.parentRelationshipMap];
+					childTable = kony.sync.currentScope.syncTableDic[childTableName];
+					var childValues = childRecord.values;
+					if(parentRelationshipMap[parentTableName]) {//checking whether child is a part of any onetomany relationship of parent
+						var relationshipAttributes = parentRelationshipMap[parentTableName];
+						for(var k = 0;k<relationshipAttributes.length;k++){
+							relationshipAttribute =relationshipAttributes[k];
+							var columnName = relationshipAttribute["ParentObject_Attribute"];
+							var childColumnName = relationshipAttribute["ChildObject_Attribute"];
+							childFieldIndex = getFieldsIndex(childRecord.fields,childColumnName);
+							kony.table.insert(wherecondition, {
+								key : columnName,
+								value : childValues[childFieldIndex]
+							});
+						}
+					}
+					else {
+						ManyToOne = childTable.Relationships.ManyToOne;
+						if(!kony.sync.isNullOrUndefined(ManyToOne)){
+							for(var k = 0;k<ManyToOne.length;k++){
+								var currentRelation = ManyToOne[k];
+								if(currentRelation.TargetObject == parentTableName){
+									var relationshipAttributes = currentRelation.RelationshipAttributes;
+									for (var j = 0; j < relationshipAttributes.length; j++) {
+										var columnName = relationshipAttributes[j].TargetObject_Attribute;
+										var childColumnName = relationshipAttributes[j].SourceObject_Attribute;
+										childFieldIndex = getFieldsIndex(childRecord.fields,childColumnName);
+										kony.table.insert(wherecondition, {
+											key : columnName,
+											value : childValues[childFieldIndex]
+										});
+									};
+								}
+							}
+						}
+					}
+					if(wherecondition.length != 0){
+						//fetchParentFromMainTable
+						query = kony.sync.qb_createQuery();
+						kony.sync.qb_select(query,null);
+						kony.sync.qb_from(query,parentTableName);
+						kony.sync.qb_where(query,wherecondition);
+						query_compile =kony.sync.qb_compile(query);
+						sql = query_compile[0];
+						params = query_compile[1];
+						resultset = kony.sync.executeSql(tx, sql,params);
+
+						if(resultset.rows.length >= 1 ){
+							var rowItem =kony.db.sqlResultsetRowItem(tx,resultset,0);
+							parentRecordIndex = createDummyChangeSet(parentTableName,rowItem);
+							sync.log.info("index of the dummy record in the changeset corrrespoding to the "+parentTableName+" is "+parentRecordIndex );
+							return parentRecordIndex;//actual index according to zero based indexing
+						}
+						else{
+							sync.log.error("no records in  :"+parentTableName+ " with a child in "+childTableName);
+							return -1;
+						}
+					}
+					else {
+						sync.log.error("Invalid Operation is defined for table :"+childTable+ " with operations to"+parentTable);
+						return -1;
+					}
+				}
+
+				function checkInChangeSet(parentTableName,childRecord,childTableName){
+					sync.log.trace("entering into checkInChangeSet function ");
+
+					var parentColumns = [];
+					var childColumns = [];
+
+					sync.log.info("check in changeset for parent "+parentTableName + " with child "+childTableName);
+
+					parentRelationshipMap = kony.sync.currentScope.syncTableDic[childTableName+kony.sync.parentRelationshipMap];
+					if(parentRelationshipMap[parentTableName]) {//checking whether child is a part of any onetomany relationship of parent
+						var relationshipAttributes = parentRelationshipMap[parentTableName];
+						var relationshipAttributes_length = relationshipAttributes.length;
+						for(var k = 0;k<relationshipAttributes_length;k++){
+							relationshipAttribute = relationshipAttributes[k];
+							var columnName = relationshipAttribute["ParentObject_Attribute"];
+							var childColumnName = relationshipAttribute["ChildObject_Attribute"];
+							parentColumns.push(columnName);
+							childColumns.push(childColumnName);
+						}
+					}
+					else {
+						ManyToOne = childTable.Relationships.ManyToOne;
+						if(!kony.sync.isNullOrUndefined(ManyToOne)){
+							for(var k = 0;k<ManyToOne.length;k++){
+								currentRelation = ManyToOne[k];
+								if(currentRelation.TargetObject == parentTableName){
+									var relationshipAttributes = currentRelation.RelationshipAttributes;
+									for (var j = 0; j < relationshipAttributes.length; j++) {
+										var columnName = relationshipAttributes[j].TargetObject_Attribute;
+										var childColumnName = relationshipAttributes[j].SourceObject_Attribute;
+										parentColumns.push(columnName);
+										childColumns.push(childColumnName);
+									}
+								}
+							}
+						}
+					}
+
+					if(kony.sync.isNullOrUndefined(tableDictionary[parentTableName]))
+						return false;
+
+					var changeSetIndex = tableDictionary[parentTableName];//index in changeset
+					var records = changeset.tables[changeSetIndex].changes;//child object changeset
+
+					for(var j =0; j < records.length;j++){
+						parentRecord = records[j];//parent records
+						var matchCount = 0;
+						var parentValues = parentRecord.values;
+						var childValues = childRecord.values;
+						for(var k=0;k<parentColumns.length;k++){
+							parentFieldIndex = getFieldsIndex(parentRecord.fields,parentColumns[k]);
+							childFieldIndex = getFieldsIndex(childRecord.fields,childColumns[k]);
+							if(parentValues[parentFieldIndex] != childValues[childFieldIndex]){
+								break;
+							}
+							matchCount++;
+						}
+						if(matchCount == parentColumns.length){
+							sync.log.info("record found in changeset for parent "+parentTableName + " with child "+childTableName);
+							return true;
+						}
+					}
+					return false;
+				}
+
+				function getFieldsIndex(fields,columnName){//helper function
+					for(var k = 0;k < fields.length;k++){
+						if(fields[k] === columnName)
+							return k;//fieldIndex
+					}
+					sync.log.error("error in changeSet record creation: no "+columnName +" found in fields");
+				}
+
+				function fetchAndAddParents(parentTableName,childRecord,childTableName){
+					sync.log.trace("entering into fetchAndAddParents");
+					//checking whether this parentTable is a part of changesetdictionary
+					if(tableDictionary[parentTableName] === undefined){
+						tableDictionary[parentTableName] = tableDictionarySize;//for the changeset
+						tableDictionarySize++;
+					}
+					parentRecordIndex = fetchParentFromMainTable(parentTableName,childRecord,childTableName);
+					if(parentRecordIndex == -1){
+						sync.log.error("improper relationships defined for "+parentTableName);
+						return -1;//
+					}
+
+					var tablesIndex = tableDictionary[parentTableName];
+					var parentRecord = changeset.tables[tablesIndex].changes[parentRecordIndex];
+					var parentTable = kony.sync.currentScope.syncTableDic[parentTableName];
+
+					//hierarchial upload operations  metadata
+					var parentTableOperations = parentTable.InputOperations;
+					if(parentTableOperations === undefined)
+						return ;//no operations defined for the parent
+					var parentRecordChangeType = parentRecord.changeType;
+					var currentOperation = parentTableOperations[parentRecordChangeType];
+
+					if(currentOperation === undefined)
+						return;//no operation defined with this change type
+
+					var parentTableNames = currentOperation.Parents;
+					var childTableNames = currentOperation.Children;
+
+					if(isRoot(currentOperation) === false){//not root
+						if(parentTableNames != undefined){
+							for(var i = 0; i < parentTableNames.length ;i++ ){
+								//to avoid sending a record which is already in changeset
+								if(checkInChangeSet(parentTableNames[i],parentRecord,parentTableName) === false){
+									parentRecordIndex = fetchAndAddParents(parentTableNames[i],parentRecord,parentTableName);
+								}
+							}
+						}
+					}
+
+					sync.log.info("mark all the child records in the changeSet");
+					//mark all the children in the changeset
+					if(childTableNames != undefined){
+						for(var i = 0;i < childTableNames.length ;i++){
+							markChildRecords(childRelationInfo[parentTableName],parentRecord,parentTableName,childTableNames[i]);
+						}
+					}
+
+				}
+
+				function markChildRecords(childRelation,parentRecord,parentTableName,childTableName){
+					sync.log.trace("entering into markChildRecords function");
+					changeSetIndex = tableDictionary[childTableName];//index in changeset
+					if(changeSetIndex === undefined){
+						sync.log.info("no child records found in the change set to mark");
+						//when the childRecords are no there at all in changeset they wont be present in tabledictionary
+						return;
+					}
+					var records = changeset.tables[changeSetIndex].changes;//child object changeset
+					// not putting a null check as changes is an array
+					for(var j =0;j<records.length;j++){
+						var parentColumns = childRelation[childTableName].parentColumns;
+						var childColumns = childRelation[childTableName].childColumns;
+						childRecord = records[j];//child records
+						var matchCount = 0;
+						var parentValues = parentRecord.values;
+						var childValues = childRecord.values;
+						for(var k=0;k < parentColumns.length;k++){
+							parentFieldIndex = getFieldsIndex(parentRecord.fields,parentColumns[k]);
+							childFieldIndex = getFieldsIndex(childRecord.fields,childColumns[k]);
+							if(parentValues[parentFieldIndex] != childValues[childFieldIndex]){
+								break;
+							}
+							matchCount++;
+						}
+						if(matchCount == parentColumns.length){
+							if(childRecord.visitedParents === undefined)
+								childRecord.visitedParents = [];
+							sync.log.info("child record found in changeset with parent "+parentTableName+" and child "+childTableName);
+							childRecord.visitedParents.push(parentTableName);
+						}
+					}
+				}
+
+				function getChildRelationsInfo(currentTableName){
+					sync.log.trace("entering into getChildRelationsInfo ");
+					var childRelation = {};
+					// dictionary for relationships,need to optimise
+					currentTable = kony.sync.currentScope.syncTableDic[currentTableName];
+					OneToMany = currentTable.Relationships.OneToMany;
+					if(!kony.sync.isNullOrUndefined(currentTable.Relationships.OneToMany)){
+						for(var j=0;j < OneToMany.length;j++){
+							var currentRelation = OneToMany[j];
+							if(childRelation[currentRelation.TargetObject] === undefined){
+								childRelation[currentRelation.TargetObject] = {};
+								childRelation[currentRelation.TargetObject].parentColumns = [];
+								childRelation[currentRelation.TargetObject].childColumns = [];
+							}
+							RelationshipAttributes = currentRelation.RelationshipAttributes;
+							for(var k=0;k < RelationshipAttributes.length;k++){
+								childRelation[currentRelation.TargetObject].parentColumns.push(RelationshipAttributes[k].SourceObject_Attribute);
+								childRelation[currentRelation.TargetObject].childColumns.push(RelationshipAttributes[k].TargetObject_Attribute);
+							}
+						}
+					}
+					reverseRelationships = kony.sync.currentScope.reverseRelationships[currentTableName];
+					for (var k in reverseRelationships) {
+						var currentRelation = reverseRelationships[k]
+						if(childRelation[currentRelation.TargetObject] === undefined){
+							childRelation[currentRelation.TargetObject] = {};
+							childRelation[currentRelation.TargetObject].parentColumns = [];
+							childRelation[currentRelation.TargetObject].childColumns = [];
+						}
+						relationshipAttributes = currentRelation.RelationshipAttributes;
+						for (var j = 0; j < relationshipAttributes.length; j++) {
+							childRelation[currentRelation.TargetObject].parentColumns.push(relationshipAttributes[j].SourceObject_Attribute);
+							childRelation[currentRelation.TargetObject].childColumns.push(relationshipAttributes[j].TargetObject_Attribute);
+						}
+					}
+					return childRelation;
+				}
+
+				//entry point here
+				childRelationInfo = {};
+				scopeTables = kony.sync.currentScope.ScopeTables;
+				for(var j = 0;j < scopeTables.length;j++){
+					childRelationInfo[scopeTables[j].Name] = getChildRelationsInfo(scopeTables[j].Name);
+				}
+				//comparator function to sort dictionary
+				function compare(a,b) {
+					if (a.konysyncreplaysequence < b.konysyncreplaysequence)
+						return -1;
+					if (a.konysyncreplaysequence > b.konysyncreplaysequence)
+						return 1;
+					return 0;
+				}
+
+				sync.log.info("sorting the dictionary of changeset metadata w.r.t konyreplaysequence");
+				//sorting the dictionary of changeset metadata w.r.t konyreplaysequence
+				replaySequenceDictionary.sort(compare);
+				//Parent-child heirarchy upload Algoritm starts here ......
+				for(var j = 0;j < replaySequenceDictionary.length ; j++ ){
+					var replaySequenceValue = replaySequenceDictionary[j];
+					var changeSetIndex = replaySequenceValue.changeSetIndex;
+					var syncTableName = replaySequenceValue.syncTableName;
+					var tableIndex = tableDictionary[syncTableName];
+					var currentRecord = changeset.tables[tableIndex].changes[changeSetIndex];
+					var changeType = currentRecord.changeType;
+					if(kony.sync.currentScope.syncTableDic[syncTableName].InputOperations === undefined){
+						sync.log.info("no operation defined for "+syncTableName+" table");
+						continue;//no operation defined for this table
+					}
+					var operations = kony.sync.currentScope.syncTableDic[syncTableName].InputOperations;
+					var currentOperation = operations[changeType];
+					if(currentOperation === undefined){
+						sync.log.info("no operation defined for "+syncTableName+" table with changetype " +changeType );
+						continue;//no operation with this change type defined for this table
+					}
+
+					var	childTableNames = currentOperation.Children;
+
+					if(isRoot(currentOperation) === false){
+						var parentsTable = currentOperation.Parents;
+						if(parentsTable ===  undefined){
+							sync.log.info("no parents defined for "+syncTableName+" table with changetype " +changeType );
+							continue;//no parents defined for a child
+						}
+						if(currentRecord.visitedParents ===  undefined){
+							currentRecord.visitedParents = [];
+						}
+						//getting the parents that are not visited
+						for(var k = 0;k < currentRecord.visitedParents.length;k++){
+							var index = parentsTable.indexOf(currentRecord.visitedParents[k]);
+							if (index > -1) {
+								parentsTable.splice(index, 1);
+							}
+							else{
+								sync.log.error("operations not defined properly for "+syncTableName);
+							}
+						}
+						for(var k = 0;k < parentsTable.length;k++){
+							sync.log.info("fetch parent records  of "+currentRecord + " tablename "+syncTableName+"  with parent "+parentsTable[k]);
+							parentRecord = fetchAndAddParents(parentsTable[k],currentRecord,syncTableName);
+						}
+					}
+
+					//mark all the children in the changeset
+					if(childTableNames != undefined){
+						for(var k = 0;k < childTableNames.length ;k++){
+							sync.log.info("mark child records of "+syncTableName +" for child "+childTableNames[k]);
+							markChildRecords(childRelationInfo[syncTableName],currentRecord,syncTableName,childTableNames[k]);
+						}
+					}
+				}
+
+
+				function isRoot(currentOperation){
+					sync.log.trace("entering into isRoot");
+					if(currentOperation.isRoot != undefined){
+						isRootFlag = currentOperation.isRoot[0];
+						if(isRootFlag === "true")
+							return true;
+					}
+					return false;
+				}
+			}
 			continueGettingChanges = false;
 		}
 	}while(continueGettingChanges);
-	
+
 	function prepareChangeSet(tx, resultset){
 		sync.log.trace("Entering kony.sync.getBatchChanges->prepareChangeSet");
 		var len = resultset.rows.length;
@@ -13049,8 +15469,15 @@ kony.sync.getBatchChanges = function(tx, scope, offset, limit, changeset, lastSe
 			var row = kony.db.sqlResultsetRowItem(tx, resultset, k);
 			if(!kony.sync.isNullOrUndefined(kony.sync.scopes.syncScopeBlobInfoMap[syncTable.Name])) {
 				populateBinaryData(tx, row);
-			}			
+			}
 			var changeType = row[kony.sync.historyTableChangeTypeColumn] + "";
+			if(kony.sync.currentScope.isHierarchical === true){
+				var replaySequenceMap = {};
+				replaySequenceMap["syncTableName"] = syncTable.Name;
+				replaySequenceMap["changeSetIndex"] = k;
+				replaySequenceMap["konysyncreplaysequence"] =  row[kony.sync.historyTableReplaySequenceColumn];
+				replaySequenceDictionary.push(replaySequenceMap);//need to check
+			}
 			var rc = {
 				fields: [],
 				values: []
@@ -13068,13 +15495,16 @@ kony.sync.getBatchChanges = function(tx, scope, offset, limit, changeset, lastSe
 				kony.sync.objectLevelInfoMap[syncTable.Name][kony.sync.numberOfRowsDeleted]=kony.sync.objectLevelInfoMap[syncTable.Name][kony.sync.numberOfRowsDeleted]+1;
 				kony.sync.syncTotalBatchDeletes += 1;
 			}
-			
+
+			//for all the missing columns, insert null.
 			if(!kony.sync.isNullOrUndefined(syncTable.Columns)){
 				for (var x = 0; x < syncTable.Columns.length; x++) {
 					var column = syncTable.Columns[x];
-					if(kony.sync.isNullOrUndefined(row[column.Name]) && (column.Name.indexOf(kony.sync.binaryMetaColumnPrefix) !== 0)){
-						kony.table.insert(rc.fields, column.Name);
-						kony.table.insert(rc.values, "null");
+					if(kony.sync.isNullOrUndefined(row[column.Name])){
+						if (column.Name.indexOf(kony.sync.binaryMetaColumnPrefix) !== 0 && column.type !== kony.sync.blob){
+							kony.table.insert(rc.fields, column.Name);
+							kony.table.insert(rc.values, "null");
+						}
 					}
 				}
 			}
@@ -13088,25 +15518,30 @@ kony.sync.getBatchChanges = function(tx, scope, offset, limit, changeset, lastSe
 		}
 		changeset.totalChanges = changeset.totalChanges + len;
 
-		kony.sync.objectLevelInfoMap[syncTable.Name][kony.sync.numberOfRowsUploaded] = 
-			kony.sync.objectLevelInfoMap[syncTable.Name][kony.sync.numberOfRowsInserted] + 
-			kony.sync.objectLevelInfoMap[syncTable.Name][kony.sync.numberOfRowsUpdated] + 
+		kony.sync.objectLevelInfoMap[syncTable.Name][kony.sync.numberOfRowsUploaded] =
+			kony.sync.objectLevelInfoMap[syncTable.Name][kony.sync.numberOfRowsInserted] +
+			kony.sync.objectLevelInfoMap[syncTable.Name][kony.sync.numberOfRowsUpdated] +
 			kony.sync.objectLevelInfoMap[syncTable.Name][kony.sync.numberOfRowsDeleted];
 	}
 	function populateBinaryData(tx, row) {
 		var binaryColumns = kony.sync.scopes.syncScopeBlobInfoMap[syncTable.Name][kony.sync.columns];
 		var binaryColumnName = null;
 		var binaryMetaFieldKey = null;
+
 		for(var i=0; i<binaryColumns.length; i++) {
 			binaryColumnName = binaryColumns[i];
 			var downloadPolicy = kony.sync.getDownloadPolicy(syncTable.Name, binaryColumnName);
-
+			if(downloadPolicy !== kony.sync.inline) {
+				delete row[binaryColumnName];
+				binaryMetaFieldKey = kony.sync.binaryMetaColumnPrefix + binaryColumnName;
+				delete row[binaryMetaFieldKey];
+			}
 			//Add the columns with inline downloadpolicy.
-			if(downloadPolicy === kony.sync.inline) {
+			else if(downloadPolicy === kony.sync.inline) {
 				binaryMetaFieldKey = kony.sync.binaryMetaColumnPrefix + binaryColumnName;
 				var blobIndex = row[binaryMetaFieldKey];
 				//If the record has any binary data..
-				if (!kony.sync.isNullOrUndefined(blobIndex)) {
+				if (blobIndex && blobIndex !== kony.sync.blobRefNotFound && blobIndex !== kony.sync.blobRefNotDefined) {
 					//get the state of the blob. if is in stable, then only push.
 					var blobMeta = kony.sync.blobManager.getBlobMetaDetails(tx, blobIndex, function(err){
 						kony.sync.syncUploadFailed(kony.sync.getErrorTable(kony.sync.errorCodeTransaction,
@@ -13115,12 +15550,11 @@ kony.sync.getBatchChanges = function(tx, scope, offset, limit, changeset, lastSe
 					if(blobMeta[kony.sync.blobManager.state] === kony.sync.blobManager.NO_OPERATION &&
 						blobMeta[kony.sync.blobManager.status] === 100) {
 						//file exists. upload.
-						var base64String = sync.util.getallbase64([blobMeta[kony.sync.blobManager.localPath]]);
+						var base64String = sync.util.getBase64FromFiles([blobMeta[kony.sync.blobManager.localPath]]);
 						if(base64String[0].length > 0){
 							row[binaryColumnName] = base64String[0];
 						} else {
 							//FILE Doesn't exist.
-							//TODO - throw an error..file doesn't exist.
 							var valuesTable = {};
 							valuesTable.state = kony.sync.blobManager.FILE_DOESNOT_EXIST;
 							var resultset = kony.sync.blobManager.updateBlobManager(tx, blobIndex, valuesTable, function(err){
@@ -13131,6 +15565,7 @@ kony.sync.getBatchChanges = function(tx, scope, offset, limit, changeset, lastSe
 								kony.sync.syncUploadFailed(kony.sync.getErrorTable(kony.sync.errorCodeBlobFileDoesnotExist,
 									kony.sync.getErrorMessage(kony.sync.errorCodeBlobFileDoesnotExist), null));
 							}
+							delete row[binaryMetaFieldKey];
 						}
 					} else {
 						//file is in invalid state.
@@ -13139,18 +15574,13 @@ kony.sync.getBatchChanges = function(tx, scope, offset, limit, changeset, lastSe
 							kony.sync.getErrorMessage(kony.sync.errorCodeBlobInvalidState), null));
 					}
 				}
-			} else {
-				//onDemand - do not send data related to the ondemand binary column.
-				delete row[binaryColumnName];
 			}
-			//delete the blobref column.
-			delete row[binaryMetaFieldKey];
 		}
 
 		function errorCallback(error) {
 			sync.log.trace(" error occured while fetching blob ");
-		}			
-	}	
+		}
+	}
 	sync.log.info("Total number of changes to be uploaded = ", changeset.totalChanges);
 	return limit;
 };
@@ -13170,9 +15600,9 @@ kony.sync.updateSyncOrderForUploadBatching = function(tx, limit){
 		var settable = [];
 		settable[kony.sync.historyTableSyncVersionColumn] = kony.sync.currentSyncScopesState[kony.sync.currentScope.ScopeName] + 1;
 		var query = kony.sync.qb_createQuery();
-					kony.sync.qb_update(query, tablename+kony.sync.historyTableName);
-					kony.sync.qb_set(query, settable);
-					kony.sync.qb_where(query, [{key:kony.sync.historyTableReplaySequenceColumn,value:limit, optype: "GT"}]);
+		kony.sync.qb_update(query, tablename+kony.sync.historyTableName);
+		kony.sync.qb_set(query, settable);
+		kony.sync.qb_where(query, [{key:kony.sync.historyTableReplaySequenceColumn,value:limit, optype: "GT"}]);
 		var query_compile = kony.sync.qb_compile(query);
 		var sql = query_compile[0];
 		var params = query_compile[1];
@@ -13191,13 +15621,13 @@ kony.sync.reconcileForeignKey = function(tx, setClause, whereClause, tablename){
 	if(kony.sync.reconcileForeignKeyForRelationShip(tx, setClause, whereClause, tablename, OTM)===false){
 		return false;
 	}
-	
+
 	//Forward Relationships(OneToOne) reconcilation
 	var OTO = kony.sync.currentScope.syncTableDic[tablename].Relationships.OneToOne;
 	if(kony.sync.reconcileForeignKeyForRelationShip(tx, setClause, whereClause, tablename, OTO)===false){
 		return false;
 	}
-	
+
 	//Reverse Relationships(ManyToOne) reconcilation
 	var MTO = kony.sync.currentScope.reverseRelationships[tablename];
 	return kony.sync.reconcileForeignKeyForRelationShip(tx, setClause, whereClause, tablename, MTO);
@@ -13240,34 +15670,34 @@ kony.sync.reconcileForeignKeyForRelationShip = function(tx, setClause, whereClau
 						break;
 					}
 				}
-				
+
 			}
-			//update main foreign table 
+			//update main foreign table
 			var query = kony.sync.qb_createQuery();
-            kony.sync.qb_update(query, tbname);
-            kony.sync.qb_set(query, setC);
-            kony.sync.qb_where(query, wcs);
-            var query_compile = kony.sync.qb_compile(query);
-            var sql = query_compile[0];
-            var params = query_compile[1];
-            if(kony.sync.executeSql(tx, sql, params)===false){
-				return false;
-			}
-				
-			//update history foreign table
-			kony.sync.qb_update(query, tbname + kony.sync.historyTableName);
-            query_compile = kony.sync.qb_compile(query);
-			sql = query_compile[0];
-            params = query_compile[1];
+			kony.sync.qb_update(query, tbname);
+			kony.sync.qb_set(query, setC);
+			kony.sync.qb_where(query, wcs);
+			var query_compile = kony.sync.qb_compile(query);
+			var sql = query_compile[0];
+			var params = query_compile[1];
 			if(kony.sync.executeSql(tx, sql, params)===false){
 				return false;
 			}
-				
+
+			//update history foreign table
+			kony.sync.qb_update(query, tbname + kony.sync.historyTableName);
+			query_compile = kony.sync.qb_compile(query);
+			sql = query_compile[0];
+			params = query_compile[1];
+			if(kony.sync.executeSql(tx, sql, params)===false){
+				return false;
+			}
+
 			//update original foreign table
 			kony.sync.qb_update(query, tbname + kony.sync.originalTableName);
-            query_compile = kony.sync.qb_compile(query);
+			query_compile = kony.sync.qb_compile(query);
 			sql = query_compile[0];
-            params = query_compile[1];
+			params = query_compile[1];
 			if(kony.sync.executeSql(tx, sql, params)===false){
 				return false;
 			}
@@ -13278,12 +15708,12 @@ kony.sync.reconcileForeignKeyForRelationShip = function(tx, setClause, whereClau
 kony.sync.checkForPendingUpload = function(tx, scopename){
 	sync.log.trace("Entering kony.sync.checkForPendingUpload");
 	var query = kony.sync.qb_createQuery();
-				kony.sync.qb_select(query, null);
-				kony.sync.qb_from(query, kony.sync.pendingUploadTableName);
-				kony.sync.qb_where(query, [{
-					key: kony.sync.metaTableScopeColumn,
-					value: scopename
-				}]);
+	kony.sync.qb_select(query, null);
+	kony.sync.qb_from(query, kony.sync.pendingUploadTableName);
+	kony.sync.qb_where(query, [{
+		key: kony.sync.metaTableScopeColumn,
+		value: scopename
+	}]);
 	var	query_compile = kony.sync.qb_compile(query);
 	var sql = query_compile[0];
 	var params = query_compile[1];
@@ -13296,61 +15726,61 @@ kony.sync.checkForPendingUpload = function(tx, scopename){
 	}
 	else{
 		return kony.db.sqlResultsetRowItem(tx, resultSet, 0);
-	}	
+	}
 };
 
 kony.sync.getUploadRequest = function (changes, lastBatch) {
 	var totalChanges = [];
-    if (!kony.sync.isNullOrUndefined(changes.tables)) {
-        for (var i = 0; i < changes.tables.length; i++) {
-            var tableChange = changes.tables[i];
-            var tableName = tableChange.tableName;
-            if (!kony.sync.isNullOrUndefined(tableChange.changes)) {
-                for (var j = 0; j < tableChange.changes.length; j++) {
-                    var rowChange = tableChange.changes[j];
-                    if (kony.sync.isNullOrUndefined(rowChange.syncConflict)) {
-                        rowChange.syncConflict = "";
-                    }
-                    var result = {
-                        metadata: {
-                            type: tableName,
-                            uri: changes.uri,
-                            changetype: rowChange.changeType,
-                            syncConflict: rowChange.syncConflict
-                        }
-                    };
-                    if (!kony.sync.isNullOrUndefined(rowChange.fields)) {
-                        var fcount = kony.sync.getArrayCount(rowChange.fields);
-                        for (var k = 0; k < fcount; k++) {
-                            if (rowChange.fields[k] !== "ServerId" && rowChange.fields[k] !== "UpdateId") {
-                                result[rowChange.fields[k]] = rowChange.values[k];
-                            }
-                        }
-                    }
-                    totalChanges.push(result);
-                }
-            }
-        }
-    }
-    
-    var moreChangesAvailable = null;
-    if (lastBatch === true) {
-        moreChangesAvailable = false;
-    } else {
-        moreChangesAvailable = true;
-    }
-    var jsonLua = {
-        d: {
-            results: totalChanges,
-            sync: "not implemented",
-            scopeName: changes.scopeName,
-            serverBlob: changes.serverblob,
-            clientid: changes.clientid,
-            SequenceNumber: changes.SequenceNumber,
-            moreChangesAvailable: moreChangesAvailable
-        }
-    };
-    return JSON.stringify(jsonLua);
+	if (!kony.sync.isNullOrUndefined(changes.tables)) {
+		for (var i = 0; i < changes.tables.length; i++) {
+			var tableChange = changes.tables[i];
+			var tableName = tableChange.tableName;
+			if (!kony.sync.isNullOrUndefined(tableChange.changes)) {
+				for (var j = 0; j < tableChange.changes.length; j++) {
+					var rowChange = tableChange.changes[j];
+					if (kony.sync.isNullOrUndefined(rowChange.syncConflict)) {
+						rowChange.syncConflict = "";
+					}
+					var result = {
+						metadata: {
+							type: tableName,
+							uri: changes.uri,
+							changetype: rowChange.changeType,
+							syncConflict: rowChange.syncConflict
+						}
+					};
+					if (!kony.sync.isNullOrUndefined(rowChange.fields)) {
+						var fcount = kony.sync.getArrayCount(rowChange.fields);
+						for (var k = 0; k < fcount; k++) {
+							if (rowChange.fields[k] !== "ServerId" && rowChange.fields[k] !== "UpdateId") {
+								result[rowChange.fields[k]] = rowChange.values[k];
+							}
+						}
+					}
+					totalChanges.push(result);
+				}
+			}
+		}
+	}
+
+	var moreChangesAvailable = null;
+	if (lastBatch === true) {
+		moreChangesAvailable = false;
+	} else {
+		moreChangesAvailable = true;
+	}
+	var jsonLua = {
+		d: {
+			results: totalChanges,
+			sync: "not implemented",
+			scopeName: changes.scopeName,
+			serverBlob: changes.serverblob,
+			clientid: changes.clientid,
+			SequenceNumber: changes.SequenceNumber,
+			moreChangesAvailable: moreChangesAvailable
+		}
+	};
+	return JSON.stringify(jsonLua);
 }
 
 kony.sync.getLastSyncUploadContext = function(scopename, dbname, scallback){
@@ -13360,15 +15790,15 @@ kony.sync.getLastSyncUploadContext = function(scopename, dbname, scallback){
 	var isError = false;
 	function transactionCallback(tx){
 		var query = kony.sync.qb_createQuery();
-					kony.sync.qb_select(query, null);
-					kony.sync.qb_from(query, kony.sync.metaTableName);
-					kony.sync.qb_where(query, [{
-						key: kony.sync.metaTableScopeColumn,
-						value: scopename
-					},{
-						key: kony.sync.metaTableFilterValue,
-						value: "no filter"
-					}]);
+		kony.sync.qb_select(query, null);
+		kony.sync.qb_from(query, kony.sync.metaTableName);
+		kony.sync.qb_where(query, [{
+			key: kony.sync.metaTableScopeColumn,
+			value: scopename
+		},{
+			key: kony.sync.metaTableFilterValue,
+			value: "no filter"
+		}]);
 		var	query_compile = kony.sync.qb_compile(query);
 		var sql = query_compile[0];
 		var params = query_compile[1];
@@ -13392,25 +15822,25 @@ kony.sync.getLastSyncUploadContext = function(scopename, dbname, scallback){
 				var cachedLastSeqNo = uploadrequest[kony.sync.lastSequenceNumber];
 				var cachedBatchSize = uploadrequest[kony.sync.batchSize];
 				var cacheChangeSet = JSON.parse(uploadrequest[kony.sync.changeSet]);
-				var cacheUploadLimit = uploadrequest[kony.sync.uploadChangesLimit];				
+				var cacheUploadLimit = uploadrequest[kony.sync.uploadChangesLimit];
 				kony.sync.getBatchChanges(tx, cachedCurrentScope, cachedOffset, cacheUploadLimit, cacheChangeSet, cachedLastSeqNo, cachedBatchSize);
 				var cacheLastBatch = uploadrequest[kony.sync.lastBatch];
 				pendingUploads[kony.sync.pendingUploadTableUploadRequest] = kony.sync.getUploadRequest(cacheChangeSet, cacheLastBatch);
-			}			
-		}		
-		
+			}
+		}
+
 		if(resultSet.rows.length === 0){
 			return "";
 		}
 		else{
 			uploadContext =  kony.db.sqlResultsetRowItem(tx, resultSet, 0);
-		}	
+		}
 	}
-	
+
 	function transactionSuccessCallback(){
 		scallback(uploadContext, pendingUploads);
 	}
-	
+
 	function transactionErrorCallback(){
 		sync.log.trace("Entering kony.sync.setOTAUploadResponse->setOTAUploadResponseTransactionFailure");
 		if (!isError){
@@ -13429,22 +15859,22 @@ kony.sync.getLastSyncUploadContext = function(scopename, dbname, scallback){
 
 kony.sync.setLastSyncUploadContext = function(tx, scopename, serverblob) {
 	sync.log.trace("Entering kony.sync.setLastSyncUploadContext");
-    var settable = [];
-    settable[kony.sync.metaTableUploadSyncTimeColumn] = serverblob;
-    var query = kony.sync.qb_createQuery();
-    kony.sync.qb_update(query, kony.sync.metaTableName);
-    kony.sync.qb_set(query, settable);
-    kony.sync.qb_where(query, [{
-        key: kony.sync.metaTableScopeColumn,
-        value: scopename
-    }, {
-        key: kony.sync.metaTableFilterValue,
-        value: "no filter"
-    }]);
-    var query_compile = kony.sync.qb_compile(query);
-    var sql = query_compile[0];
-    var params = query_compile[1];
-    if(kony.sync.executeSql(tx, sql, params)===false){
+	var settable = [];
+	settable[kony.sync.metaTableUploadSyncTimeColumn] = serverblob;
+	var query = kony.sync.qb_createQuery();
+	kony.sync.qb_update(query, kony.sync.metaTableName);
+	kony.sync.qb_set(query, settable);
+	kony.sync.qb_where(query, [{
+		key: kony.sync.metaTableScopeColumn,
+		value: scopename
+	}, {
+		key: kony.sync.metaTableFilterValue,
+		value: "no filter"
+	}]);
+	var query_compile = kony.sync.qb_compile(query);
+	var sql = query_compile[0];
+	var params = query_compile[1];
+	if(kony.sync.executeSql(tx, sql, params)===false){
 		return false;
 	}
 };
@@ -13455,17 +15885,17 @@ kony.sync.addLastUploadRequest = function (json, scopename, limit, callback){
 	function transactionCallback(tx){
 		//check whether failed upload request is already logged
 		var lastRequest = kony.sync.checkForPendingUpload(tx, scopename);
-		
+
 		//return if query failed, should go to error callback
 		if(lastRequest===false){
 			return;
 		}
-		
+
 		//return if request already logged, should go to success callback
 		if(lastRequest!==""){
 			return;
 		}
-		
+
 		var settable = {};
 		settable[kony.sync.metaTableScopeColumn] = scopename;
 		settable[kony.sync.pendingUploadTableInsertCount] = kony.sync.syncTotalInserts;
@@ -13478,8 +15908,8 @@ kony.sync.addLastUploadRequest = function (json, scopename, limit, callback){
 		settable[kony.sync.pendingUploadTableUploadRequest] = json;
 		settable[kony.sync.pendingUploadTableUploadLimit] = limit;
 		var query = kony.sync.qb_createQuery();
-					kony.sync.qb_insert(query, kony.sync.pendingUploadTableName);
-					kony.sync.qb_set(query, settable);
+		kony.sync.qb_insert(query, kony.sync.pendingUploadTableName);
+		kony.sync.qb_set(query, settable);
 		var	query_compile = kony.sync.qb_compile(query);
 		var sql = query_compile[0];
 		var params = query_compile[1];
@@ -13488,12 +15918,12 @@ kony.sync.addLastUploadRequest = function (json, scopename, limit, callback){
 			isError = true;
 		}
 	}
-	
+
 	function transactionSuccessCallback(){
 		sync.log.trace("Entering kony.sync.addLastUploadRequest->transactionSuccessCallback");
 		callback(true);
 	}
-	
+
 	function transactionErrorCallback(){
 		sync.log.trace("Entering kony.sync.addLastUploadRequest->transactionErrorCallback");
 		if (!isError){
@@ -13515,8 +15945,8 @@ kony.sync.addLastUploadRequest = function (json, scopename, limit, callback){
 kony.sync.deleteLastUploadRequest = function (tx, scopename){
 	sync.log.trace("Entering kony.sync.deleteLastUploadRequest");
 	var query = kony.sync.qb_createQuery();
-			kony.sync.qb_delete(query, kony.sync.pendingUploadTableName);
-			kony.sync.qb_where(query, [{key:kony.sync.metaTableScopeColumn, value:scopename}]);
+	kony.sync.qb_delete(query, kony.sync.pendingUploadTableName);
+	kony.sync.qb_where(query, [{key:kony.sync.metaTableScopeColumn, value:scopename}]);
 	var query_compile = kony.sync.qb_compile(query);
 	var sql = query_compile[0];
 	var params = query_compile[1];
@@ -13530,17 +15960,17 @@ kony.sync.deleteLastUploadRequest = function (tx, scopename){
 kony.sync.deleteLastUploadRequestWithNewTransaction = function (callback){
 	sync.log.trace("Entering kony.sync.deleteLastUploadRequestWithNewTransaction");
 	var isError = false;
-	function transactionCallback(tx){		
+	function transactionCallback(tx){
 		if(kony.sync.deleteLastUploadRequest(tx, kony.sync.currentScope[kony.sync.scopeName])===false){
 			isError = true;
 		}
 	}
-	
+
 	function transactionSuccessCallback(){
 		sync.log.trace("Entering kony.sync.deleteLastUploadRequestWithNewTransaction->transactionSuccessCallback");
 		callback(true);
 	}
-	
+
 	function transactionErrorCallback(){
 		sync.log.trace("Entering kony.sync.deleteLastUploadRequestWithNewTransaction->transactionErrorCallback");
 		if (!isError){
@@ -13557,6 +15987,7 @@ kony.sync.deleteLastUploadRequestWithNewTransaction = function (callback){
 		kony.db.transaction(connection, transactionCallback, transactionErrorCallback, transactionSuccessCallback);
 	}
 };
+
 //  **************** End KonySyncUpload.js*******************
 
 

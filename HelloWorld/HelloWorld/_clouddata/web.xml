@@ -1,0 +1,453 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<web-app id="WebApp_ID" version="2.4" xmlns="http://java.sun.com/xml/ns/j2ee" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://java.sun.com/xml/ns/j2ee http://java.sun.com/xml/ns/j2ee/web-app_2_4.xsd">
+    <display-name>Kony Application Middleware</display-name>
+    
+    <welcome-file-list>
+		<welcome-file>p</welcome-file>
+	</welcome-file-list>
+	
+    <listener>
+        <listener-class>com.konylabs.middleware.common.MWAppContextListener</listener-class>
+    </listener>
+    <listener>
+        <listener-class>com.konylabs.middleware.common.MiddlewareValidationListener</listener-class>
+    </listener>
+    <!-- START - Enable SAP Listener for SAP services
+    <listener>
+        <listener-class>com.konylabs.middleware.common.SAPConnectorListener</listener-class>
+    </listener>
+    END - SAP Listener for SAP services -->
+    <!-- START - Enable JMS Listener for JMS services
+    <listener>
+        <listener-class>com.konylabs.middleware.connectors.jms.JmsConnectorListener</listener-class>
+    </listener>
+    END - JMS Listener for JMS services -->
+    <listener>
+        <listener-class>com.konylabs.middleware.common.JobServletContextListener</listener-class>
+    </listener>
+    <listener>
+        <listener-class>org.apache.commons.fileupload.servlet.FileCleanerCleanup</listener-class>
+    </listener>
+    <!-- Start of Thinclient Specific Listeners -->
+    <listener>
+   		<listener-class>com.konylabs.middleware.common.AppContextListener</listener-class>
+	</listener>
+	<listener>
+		<listener-class>com.kony.web.util.TCValidationListener</listener-class>
+	</listener>
+	<!-- End of Thinclient Specific Listeners -->
+	<!-- START S3 Log level read listener -->
+	<listener>
+        <listener-class>com.konylabs.middleware.cloud.S3LogLevelListener</listener-class>
+    </listener>
+    <!-- END S3 Log level read listener -->
+	<!-- Custom Listeners  -->
+    <context-param>
+        <description>Canonical application ID of middleware</description>
+        <param-name>appID</param-name>
+        <!--  PRAJAKT: DONOT CHANGE THIS VALUE IT USED BY THE LOG4J to load the middleware-log4j.properties file-->
+        <param-value>HelloWorld</param-value>
+    </context-param>
+    <context-param>
+            <description>Interface to middleware</description>
+            <param-name>middleware_interface</param-name>
+            <param-value>local</param-value>
+    </context-param>
+    <!--  
+	<context-param>
+		<description>Country Specific Context. Give Country name without spaces</description>
+		<param-name>region</param-name>
+		<param-value>taiwan</param-value>		
+	</context-param>
+	-->
+	
+	<filter>
+		<description>It intercepts the MWServlet and filters cloud validation</description>
+		<filter-name>InterceptorFilter</filter-name>
+		<filter-class>com.konylabs.middleware.common.InterceptorFilter</filter-class>
+	</filter>
+	<filter-mapping>
+		<filter-name>InterceptorFilter</filter-name>
+		<servlet-name>MWServlet</servlet-name>
+	</filter-mapping>
+	<filter-mapping>
+		<filter-name>InterceptorFilter</filter-name>
+		<servlet-name>KonyWebController</servlet-name>
+	</filter-mapping>
+
+    <filter>
+        <filter-name>XSSFilter</filter-name>
+        <filter-class>com.konylabs.middleware.common.XSSFilter</filter-class>
+    </filter>
+    <filter-mapping>
+        <filter-name>XSSFilter</filter-name>
+        <servlet-name>MWServlet</servlet-name>
+    </filter-mapping>
+    <!-- Start of Thinclient Servlet XSS filters. -->
+    <filter-mapping>
+            <filter-name>XSSFilter</filter-name>
+            <servlet-name>KonyWebController</servlet-name>
+    </filter-mapping>
+	<!-- End of Thinclient Servlet XSS filters. -->
+
+	<!--  COMMENTED THE BELOW FILTER AS PER PATTABHI -->
+	<!--  Enabling the below filter mapping for mBaaS as asked by "Mahendra Racha" -->
+    <filter>
+        <description>It intercepts the MWServlet and add an additional attribute to the response header.</description>
+        <filter-name>AdditionalResponseHeaderAttribute</filter-name>
+        <filter-class>com.konylabs.middleware.common.AddAdditionalResponseHeaderAttribute</filter-class>
+    </filter>
+    <filter-mapping>
+        <filter-name>AdditionalResponseHeaderAttribute</filter-name>
+        <servlet-name>*</servlet-name>
+    </filter-mapping>
+
+    <filter>
+        <filter-name>RichDCFilter</filter-name>
+        <filter-class>com.konylabs.middleware.common.MiddlewareMemCacheDCFilter</filter-class>
+        <init-param>
+            <description>NDC Builder class name</description>
+            <param-name>NDCBuilderClassName</param-name>
+            <param-value>com.konylabs.middleware.common.MWNDCBuilder</param-value>
+        </init-param>
+    </filter>
+    <filter-mapping>
+        <filter-name>RichDCFilter</filter-name>
+        <servlet-name>MWServlet</servlet-name>
+    </filter-mapping>
+    
+    
+    <!-- Start of Thinclient Specific filters -->
+    <filter>
+		<filter-name>MiddlewareDCFilter</filter-name>
+		<filter-class>com.konylabs.middleware.common.MemCacheDCFilter</filter-class>
+	</filter>
+	<filter-mapping>
+		<filter-name>MiddlewareDCFilter</filter-name>
+		<servlet-name>KonyWebController</servlet-name>
+                <dispatcher>REQUEST</dispatcher>
+                <dispatcher>INCLUDE</dispatcher>
+	</filter-mapping>
+	<filter-mapping>
+        <filter-name>MiddlewareDCFilter</filter-name>
+        <servlet-name>KonyDesktopWeb</servlet-name>
+    </filter-mapping>
+	<filter-mapping>
+        <filter-name>MiddlewareDCFilter</filter-name>
+        <servlet-name>KonySPAServlet</servlet-name>
+    </filter-mapping>
+<!-- Image Filter -->
+<!-- Start of Image Filter --><!--
+	<filter>
+        <filter-name>KonyImageFilter</filter-name>
+        <filter-class>com.kony.web.filter.KonyImageFilter</filter-class>
+    </filter>
+     <filter-mapping>
+        <filter-name>KonyImageFilter</filter-name>
+        <url-pattern>/android/images/checkdpi/*</url-pattern>
+    </filter-mapping>
+     <filter-mapping>
+        <filter-name>KonyImageFilter</filter-name>
+        <url-pattern>/iphone/images/checkdpi/*</url-pattern>
+    </filter-mapping>
+     <filter-mapping>
+        <filter-name>KonyImageFilter</filter-name>
+        <url-pattern>/bb/images/checkdpi/*</url-pattern>
+    </filter-mapping>
+     <filter-mapping>
+        <filter-name>KonyImageFilter</filter-name>
+        <url-pattern>/nth/images/checkdpi/*</url-pattern>
+    </filter-mapping>
+    --><!-- End of Image Filter -->
+     <!-- SPA device detection to identify platforms for which SPA is built. -->
+    <filter>
+        <filter-name>KonySPADetailsFilter</filter-name>
+        <filter-class>com.kony.web.filter.KonySPADetailsFilter</filter-class>
+    </filter>
+    <filter-mapping>
+        <filter-name>KonySPADetailsFilter</filter-name>
+        <servlet-name>KonyWebController</servlet-name>
+    </filter-mapping>
+	<!-- End of Thinclient Specific filters -->
+	<!-- Custom  Filters -->
+    <servlet>
+        <description/>
+        <display-name>MWServlet</display-name>
+        <servlet-name>MWServlet</servlet-name>
+        <servlet-class>com.konylabs.middleware.entry.MWServlet</servlet-class>
+        <load-on-startup>1</load-on-startup>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>MWServlet</servlet-name>
+        <url-pattern>/MWServlet</url-pattern>
+    </servlet-mapping>
+    <!-- Start Thinclient Servlet -->
+	<servlet>
+        <servlet-name>KonyWebController</servlet-name>
+        <servlet-class>com.kony.web.controller.KonyWebCommon</servlet-class> 
+        <init-param>
+            <param-name>appid</param-name> 
+            <param-value>HelloWorld</param-value>
+        </init-param>
+        <init-param>
+            <param-name>servletname</param-name>
+            <param-value>p</param-value>
+        </init-param>
+        <init-param>
+            <param-name>httpport</param-name>
+            <param-value>80</param-value>
+        </init-param>
+        <init-param>
+            <param-name>httpsport</param-name>
+            <param-value>443</param-value>
+        </init-param>
+         <init-param>
+            <param-name>session_type</param-name>
+            <param-value>1</param-value>
+        </init-param>
+		<init-param>
+            <param-name>sechtno</param-name>
+            <param-value>443</param-value>
+        </init-param>
+        <init-param>
+	    <param-name>applocales</param-name>
+            <param-value></param-value>
+        </init-param>
+        <init-param>
+            <param-name>device_db_lookup</param-name>
+            <param-value>false</param-value>
+        </init-param>
+        <init-param>
+            <param-name>jsp_base</param-name>
+            <param-value>/WEB-INF/</param-value>
+        </init-param>
+        <init-param>
+            <param-name>sm_secure</param-name>
+            <param-value>false</param-value>
+        </init-param>
+		<init-param>
+            <param-name>spa</param-name>
+            <param-value>spaiphone,spaandroid,spawinphone8,spaipad,spaandroidtablet,spawindowstablet</param-value>
+        </init-param>
+        <load-on-startup>1</load-on-startup>            
+    </servlet>
+ 	<servlet-mapping>
+        <servlet-name>KonyWebController</servlet-name>
+        <url-pattern>/p</url-pattern>
+    </servlet-mapping> 
+    <servlet-mapping>
+        <servlet-name>KonyWebController</servlet-name>
+        <url-pattern>/p/*</url-pattern>
+    </servlet-mapping>    
+    <!-- Remote Deploy I start 
+    <servlet-mapping>
+        <servlet-name>KonyWebController</servlet-name>
+        <url-pattern>/</url-pattern>
+    </servlet-mapping>
+	 End Thinclient Servlet -->
+	<!-- Start of Desktop Web Servlet  -->
+    <servlet>
+     	<servlet-name>KonyDesktopWeb</servlet-name>
+        <servlet-class>com.kony.web.controller.KonyDesktopServlet</servlet-class>
+		<init-param>
+            <param-name>appid</param-name>
+            <param-value>HelloWorld</param-value>
+        </init-param>       
+    </servlet>
+        
+    <servlet-mapping>
+            <servlet-name>KonyDesktopWeb</servlet-name>
+            <url-pattern>/kdw</url-pattern>
+	</servlet-mapping> 
+	<!-- End of Desktop Web Servlet  -->
+
+<!--  SPA Proxy servlet used for invoking remote services. -->
+    <servlet>
+        <servlet-name>KonySPAServlet</servlet-name>
+        <servlet-class>com.kony.web.controller.KonySPAServlet</servlet-class>
+        <load-on-startup>1</load-on-startup>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>KonySPAServlet</servlet-name>
+        <url-pattern>/spa</url-pattern>
+    </servlet-mapping>
+
+<!--  SPA servlet to support properties api. -->
+    <servlet>
+        <servlet-name>KonySPAPropertiesServlet</servlet-name>
+        <servlet-class>com.kony.web.controller.KonySPAPropertiesServlet</servlet-class>
+        <load-on-startup>1</load-on-startup>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>KonySPAPropertiesServlet</servlet-name>
+        <url-pattern>*.kprops</url-pattern>
+    </servlet-mapping>
+
+	<!-- START - SessionTracking Servlet for logging info for cloud session -->
+	<servlet>
+		<display-name>IST</display-name>
+		<servlet-name>IST</servlet-name>
+		<servlet-class>com.konylabs.middleware.cloud.SessionTrackingServlet</servlet-class>
+		<load-on-startup>1</load-on-startup>
+	</servlet>
+	<filter-mapping>
+		<filter-name>InterceptorFilter</filter-name>
+		<servlet-name>IST</servlet-name>
+	</filter-mapping>
+	<servlet-mapping>
+		<servlet-name>IST</servlet-name>
+		<url-pattern>/IST</url-pattern>
+	</servlet-mapping>
+	<servlet>
+		<display-name>CMS</display-name>
+		<servlet-name>CMS</servlet-name>
+		<servlet-class>com.konylabs.middleware.cloud.CustomMetricsServlet</servlet-class>
+		<load-on-startup>1</load-on-startup>
+	</servlet>
+	<servlet-mapping>
+		<servlet-name>CMS</servlet-name>
+		<url-pattern>/CMS</url-pattern>
+	</servlet-mapping>
+
+	<!-- END - SessionTracking Servlet for logging info for cloud session -->
+	<servlet>
+		<servlet-name>channel</servlet-name>
+		<servlet-class>com.konylabs.middleware.cloud.ChannelServlet</servlet-class>
+		<init-param>
+			<description>spa and desktopweb build information</description>
+			<param-name>cloud-channels</param-name>
+			<param-value>spaiphone,spaandroid,spawinphone8,spaipad,spaandroidtablet,spawindowstablet</param-value>
+		</init-param>
+		<load-on-startup>1</load-on-startup>
+	</servlet>
+	<servlet-mapping>
+		<servlet-name>channel</servlet-name>
+		<url-pattern>/channel</url-pattern>
+	</servlet-mapping>
+
+    <servlet>
+        <description/>
+        <display-name>konyRelayServices</display-name>
+        <servlet-name>konyRelayServices</servlet-name>
+        <servlet-class>com.konylabs.middleware.cloud.KonyRelayService</servlet-class>
+        <load-on-startup>1</load-on-startup>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>konyRelayServices</servlet-name>
+        <url-pattern>/konyRelayServices</url-pattern>
+    </servlet-mapping>
+    <servlet>
+        <description/>
+        <display-name>konyConfigServices</display-name>
+        <servlet-name>konyConfigServices</servlet-name>
+        <servlet-class>com.konylabs.middleware.cloud.KonyConfigService</servlet-class>
+        <load-on-startup>1</load-on-startup>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>konyConfigServices</servlet-name>
+        <url-pattern>/konyConfigServices</url-pattern>
+    </servlet-mapping>
+    
+    <servlet>
+       <description> Health check servlet</description>
+       <display-name>healthCheck</display-name>
+       <servlet-name>healthcheck</servlet-name>
+       <servlet-class>com.konylabs.middleware.cloud.HealthCheckServlet</servlet-class>
+       <load-on-startup>1</load-on-startup>
+       </servlet>
+    <servlet-mapping>
+      <servlet-name>healthcheck</servlet-name>
+      <url-pattern>/healthcheck</url-pattern>
+   	</servlet-mapping>
+    
+    <!-- START - Log4j Web Tracker -->
+	<servlet>
+		<servlet-name>Log4jTracker</servlet-name>
+		<servlet-class>com.konylabs.middleware.cloud.Log4jTracker</servlet-class>
+	</servlet>
+	<servlet-mapping>
+		<servlet-name>Log4jTracker</servlet-name>
+		<url-pattern>/Log4jTracker</url-pattern>
+	</servlet-mapping>
+    <!-- END - Log4j Web Tracker -->
+	
+
+
+	<!-- Start of thinclient specific issue. -->
+	<session-config>
+        <session-timeout>30</session-timeout>
+    </session-config>
+    <env-entry>
+        <env-entry-name>servletname</env-entry-name>
+        <env-entry-type>java.lang.String</env-entry-type>
+        <env-entry-value>p</env-entry-value>
+    </env-entry>
+    <!-- End of thinclient specific issue.-->
+
+    <resource-ref>
+        <description>Kony Device Central Connection</description>
+        <res-ref-name>jdbc/KDCDB</res-ref-name>
+        <res-type>javax.sql.DataSource</res-type>
+        <res-auth>Container</res-auth>
+    </resource-ref>
+
+	
+                              
+
+    <!-- Start of Thinclient specific error pages -->    
+    <error-page>
+        <error-code>500</error-code>
+        <location>/genericerror.jsp</location>
+    </error-page>
+    <error-page>
+        <exception-type>javax.servlet.ServletException</exception-type>
+        <location>/genericerror.jsp</location>
+    </error-page>
+    <error-page>
+        <exception-type>com.kony.web.exception.ChannelNotFoundException</exception-type>
+        <location>/genericerror.jsp</location>
+    </error-page>
+    <!-- End of Thinclient specific error pages -->    
+
+    <error-page>
+        <exception-type>java.lang.Throwable</exception-type>
+        <location>/500.html</location>
+    </error-page>
+    <error-page>
+        <error-code>400</error-code>
+        <location>/403.html</location>
+    </error-page>
+    <error-page>
+        <error-code>401</error-code>
+        <location>/403.html</location>
+    </error-page>
+    <error-page>
+        <error-code>403</error-code>
+        <location>/403.html</location>
+    </error-page>
+    <error-page>
+        <error-code>404</error-code>
+        <location>/404.html</location>
+    </error-page>
+    <error-page>
+        <error-code>405</error-code>
+        <location>/403.html</location>
+    </error-page>
+    <error-page>
+        <error-code>408</error-code>
+        <location>/403.html</location>
+    </error-page>
+    <error-page>
+        <error-code>413</error-code>
+        <location>/403.html</location>
+    </error-page>
+    <error-page>
+        <error-code>414</error-code>
+        <location>/403.html</location>
+    </error-page>
+    <error-page>
+        <error-code>503</error-code>
+        <location>/500.html</location>
+    </error-page>
+
+</web-app>

@@ -203,11 +203,16 @@
     "currentgaversion": "6.9.0",
     "mwhttpsportkey": "",
     "vendornamekey": "KonyLabs",
+    "mfappguid": {
+        "f30ee099-dd0b-41f8-9da6-5eb2b11ec299": "59ef2591-e51a-441c-8e72-a7c5503b8d70",
+        "1cbf2a94-7272-46f2-a277-bb175e683b75": "669bd8a9-e2ab-4f8c-a029-d1bb46451a7c"
+    },
     "konyVizVersion": "2.9.0",
     "appnamekey": "HelloWorld",
     "APPLICATION_THEME": "default",
     "wap_android440_fontsize": "12",
     "wap_spaipad_fontsize": "12",
     "wap_spaandroidtabhdpi_fontsize": "12",
-    "wap_bb360_fontsize": "12"
+    "wap_bb360_fontsize": "12",
+    "export.type": "visualizer"
 }
