@@ -78,6 +78,7 @@ To build and run this app you will need to download and install [Kony Visualizer
  * Android
  * iPad
 
+Certified4KonyCommunity7.1.1 
  
 
 
