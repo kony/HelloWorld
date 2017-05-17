@@ -8,17 +8,17 @@ This simple HelloWorld app is used to insure that your [Kony Development Cloud](
  
 1. Download the project zip file.
 2. Unzip the project to any folder
-3. Launch Kony Visualizer Enterprise version 7.0.
-4. Import the project by selecting the HelloWorld folder.
+3. Launch Kony Visualizer Enterprise version 7.3.
+4. Import the project by selecting the HelloWorld.zip
 5. Build and Run the app.
 
 **To Run This App in Kony Visualizer:**
 
 1. Download the project zip file.
 2. Unzip the project to any folder.
-3. Launch Kony Visualizer
-4. Import the project by selecting the HelloWorld folder.
-5. Run the app.
+3. Launch Kony Visualizer 7.3
+4. Import the project by selecting the HelloWorld.zip
+5. Run the app as "Run studio".
 6. Launch in Functional Preview through Local account or Cloud.
 
 Local :
